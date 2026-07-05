@@ -13,3 +13,8 @@ export function createColumn(boardId: string, name: string): Promise<Column> {
 export function reorderColumn(columnId: string, order: number): Promise<Column[]> {
   return request(`/columns/${columnId}/reorder`, { method: 'PATCH', body: { order } });
 }
+
+/** RN-004: tarefas são movidas para a primeira coluna restante; 400 se for a única coluna do quadro. */
+export function deleteColumn(columnId: string): Promise<void> {
+  return request(`/columns/${columnId}`, { method: 'DELETE' });
+}

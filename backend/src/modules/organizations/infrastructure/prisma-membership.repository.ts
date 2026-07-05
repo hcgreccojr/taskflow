@@ -26,6 +26,11 @@ export class PrismaMembershipRepository implements MembershipRepository {
     return rows.map((row) => this.toDomain(row));
   }
 
+  async findById(id: string): Promise<Membership | null> {
+    const row = await this.prisma.membership.findUnique({ where: { id } });
+    return row ? this.toDomain(row) : null;
+  }
+
   async create(data: CreateMembershipData): Promise<Membership> {
     const row = await this.prisma.membership.create({
       data: {
@@ -35,6 +40,10 @@ export class PrismaMembershipRepository implements MembershipRepository {
       },
     });
     return this.toDomain(row);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.membership.delete({ where: { id } });
   }
 
   private toDomain(row: {

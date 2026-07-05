@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { BoardsModule } from '../boards/boards.module';
 import { ColumnsModule } from '../columns/columns.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
@@ -15,7 +15,7 @@ import { ListActivityUseCase } from './application/use-cases/list-activity.use-c
 import { TasksController } from './presentation/tasks.controller';
 
 @Module({
-  imports: [BoardsModule, ColumnsModule, OrganizationsModule, ActivityLogsModule],
+  imports: [BoardsModule, forwardRef(() => ColumnsModule), OrganizationsModule, ActivityLogsModule],
   controllers: [TasksController],
   providers: [
     { provide: TASK_REPOSITORY, useClass: PrismaTaskRepository },

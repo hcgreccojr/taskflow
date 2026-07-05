@@ -1,0 +1,50 @@
+# Variante de docker-compose.yml para subir a stack publicada (ghcr.io) em
+# qualquer host com Docker, sem precisar clonar/buildar o código-fonte.
+#
+# Uso:
+#   cp .env.example .env   # ajuste POSTGRES_*, JWT_* e DATABASE_URL para produção/staging
+#   docker compose -f docker-compose.staging.yml up -d
+#   docker compose -f docker-compose.staging.yml exec backend npx prisma migrate deploy
+#
+# As imagens são publicadas automaticamente pelo job "publish" do CI a cada
+# push na branch main (ver .github/workflows/ci.yml).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-taskflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taskflow}
+      POSTGRES_DB: ${POSTGRES_DB:-taskflow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taskflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER:-hcgreccojr}/taskflow-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER:-hcgreccojr}/taskflow-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

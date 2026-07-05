@@ -1,5 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/infrastructure/decorators/current-user.decorator';
 import { TokenPayload } from '../../auth/application/ports/token.service.port';
 import { CreateCommentUseCase } from '../application/use-cases/create-comment.use-case';
@@ -22,6 +29,10 @@ export class CommentsController {
   ) {}
 
   @Post('tasks/:id/comments')
+  @ApiOperation({ summary: 'Comentar em uma tarefa' })
+  @ApiCreatedResponse({ type: CommentResponseDto })
+  @ApiResponse({ status: 404, description: 'Tarefa, coluna ou quadro não encontrado' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização do quadro' })
   async create(
     @CurrentUser() user: TokenPayload,
     @Param('id') taskId: string,
@@ -36,6 +47,10 @@ export class CommentsController {
   }
 
   @Get('tasks/:id/comments')
+  @ApiOperation({ summary: 'Listar comentários de uma tarefa' })
+  @ApiOkResponse({ type: CommentResponseDto, isArray: true })
+  @ApiResponse({ status: 404, description: 'Tarefa, coluna ou quadro não encontrado' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização do quadro' })
   async list(
     @CurrentUser() user: TokenPayload,
     @Param('id') taskId: string,
@@ -45,6 +60,11 @@ export class CommentsController {
   }
 
   @Patch('comments/:id')
+  @ApiOperation({ summary: 'Editar comentário (até 15 minutos após a criação, apenas o autor)' })
+  @ApiOkResponse({ type: CommentResponseDto })
+  @ApiResponse({ status: 404, description: 'Comentário, tarefa, coluna ou quadro não encontrado' })
+  @ApiResponse({ status: 403, description: 'Apenas o autor pode editar este comentário' })
+  @ApiResponse({ status: 422, description: 'Janela de 15 minutos para edição já expirou' })
   async update(
     @CurrentUser() user: TokenPayload,
     @Param('id') commentId: string,
@@ -59,6 +79,10 @@ export class CommentsController {
   }
 
   @Delete('comments/:id')
+  @ApiOperation({ summary: 'Excluir comentário (apenas o autor, sem limite de tempo)' })
+  @ApiResponse({ status: 200, description: 'Comentário excluído' })
+  @ApiResponse({ status: 404, description: 'Comentário, tarefa, coluna ou quadro não encontrado' })
+  @ApiResponse({ status: 403, description: 'Apenas o autor pode excluir este comentário' })
   async delete(@CurrentUser() user: TokenPayload, @Param('id') commentId: string): Promise<void> {
     await this.deleteCommentUseCase.execute({ requesterId: user.sub, commentId });
   }

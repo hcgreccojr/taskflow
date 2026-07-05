@@ -20,4 +20,5 @@ export interface ColumnRepository {
   findByBoardId(boardId: string): Promise<Column[]>;
   /** Persiste o novo `order` de todas as colunas informadas numa única transação. */
   updateOrders(updates: ColumnOrderUpdate[]): Promise<void>;
+  delete(id: string): Promise<void>;
 }

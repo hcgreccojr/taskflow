@@ -21,6 +21,7 @@ interface BoardsState {
   createBoard: (organizationId: string, name: string, description?: string) => Promise<Board>;
   fetchBoardData: (boardId: string) => Promise<void>;
   createColumn: (boardId: string, name: string) => Promise<void>;
+  deleteColumn: (boardId: string, columnId: string) => Promise<void>;
 
   createTask: (columnId: string, input: CreateTaskInput) => Promise<void>;
   updateTask: (taskId: string, columnId: string, input: UpdateTaskInput) => Promise<Task>;
@@ -29,7 +30,7 @@ interface BoardsState {
   reorderColumns: (boardId: string, columnId: string, order: number) => Promise<void>;
 }
 
-export const useBoardsStore = create<BoardsState>((set) => ({
+export const useBoardsStore = create<BoardsState>((set, get) => ({
   boardsByOrg: {},
   columnsByBoard: {},
   tasksByColumn: {},
@@ -144,5 +145,13 @@ export const useBoardsStore = create<BoardsState>((set) => ({
   reorderColumns: async (boardId, columnId, order) => {
     const columns = await columnsApi.reorderColumn(columnId, order);
     set((state) => ({ columnsByBoard: { ...state.columnsByBoard, [boardId]: columns } }));
+  },
+
+  deleteColumn: async (boardId, columnId) => {
+    await columnsApi.deleteColumn(columnId);
+    // O backend já move as tarefas restantes para a primeira coluna e
+    // reindexa as demais (RN-004) — refazer o fetch garante estado consistente
+    // sem duplicar essa lógica no frontend.
+    await get().fetchBoardData(boardId);
   },
 }));

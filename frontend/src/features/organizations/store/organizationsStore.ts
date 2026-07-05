@@ -10,6 +10,7 @@ interface OrganizationsState {
   createOrganization: (name: string) => Promise<Organization>;
   fetchMembers: (organizationId: string) => Promise<void>;
   inviteMember: (organizationId: string, email: string, role?: MembershipRole) => Promise<void>;
+  removeMember: (organizationId: string, membershipId: string) => Promise<void>;
 }
 
 export const useOrganizationsStore = create<OrganizationsState>((set, get) => ({
@@ -42,5 +43,17 @@ export const useOrganizationsStore = create<OrganizationsState>((set, get) => ({
   inviteMember: async (organizationId, email, role) => {
     await organizationsApi.inviteMember(organizationId, { email, role });
     await get().fetchMembers(organizationId);
+  },
+
+  removeMember: async (organizationId, membershipId) => {
+    await organizationsApi.removeMember(organizationId, membershipId);
+    set((state) => ({
+      membersByOrg: {
+        ...state.membersByOrg,
+        [organizationId]: (state.membersByOrg[organizationId] ?? []).filter(
+          (member) => member.id !== membershipId,
+        ),
+      },
+    }));
   },
 }));

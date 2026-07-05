@@ -1,5 +1,5 @@
 import { Controller, Get, Inject, NotFoundException } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/infrastructure/decorators/current-user.decorator';
 import { TokenPayload } from '../../auth/application/ports/token.service.port';
 import { USER_REPOSITORY, UserRepository } from '../application/ports/user-repository.port';
@@ -12,6 +12,8 @@ export class UsersController {
   constructor(@Inject(USER_REPOSITORY) private readonly userRepository: UserRepository) {}
 
   @Get('me')
+  @ApiOperation({ summary: 'Consultar perfil do usuário autenticado' })
+  @ApiOkResponse({ type: UserResponseDto })
   async me(@CurrentUser() user: TokenPayload): Promise<UserResponseDto> {
     const found = await this.userRepository.findById(user.sub);
     if (!found) {

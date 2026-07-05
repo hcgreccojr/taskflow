@@ -1,7 +1,7 @@
 {
   "project": "TaskFlow",
   "description": "Sistema de gestão de tarefas colaborativo (estilo Trello/Jira simplificado)",
-  "version": "1.4",
+  "version": "1.5",
   "document_type": "requirements",
   "changelog": [
     {
@@ -36,6 +36,16 @@
         "Adicionado o endpoint GET /organizations/:id/members. Sem ele não era possível popular o seletor de responsável de uma tarefa, a pilha de avatares de membros do quadro, nem a tela de gestão de membros (RF-005) com dados reais — a única rota existente para membership era POST /organizations/:id/invites (criação), sem leitura correspondente.",
         "Adicionado o endpoint GET /boards/:id/columns. As colunas de um quadro só eram retornadas no corpo de POST /boards/:id/columns (criação) ou PATCH /columns/:id/reorder (reordenação) — não havia forma de carregar as colunas de um quadro já existente ao simplesmente abrir a tela do quadro."
       ]
+    },
+    {
+      "version": "1.5",
+      "date": "2026-07-05",
+      "changes": [
+        "Auditoria completa comparando o código implementado com este documento (todas as fases 1-8): nenhuma funcionalidade foi implementada fora do escopo aqui descrito. Foi encontrado o inverso — duas regras de negócio documentadas desde a v1.0 sem nenhum endpoint/RF correspondente, agora corrigido:",
+        "Adicionados RF-016 (Remover membro) e o endpoint DELETE /organizations/:id/members/:memberId. RN-002 já previa 'apenas administradores podem convidar OU REMOVER membros', mas só a metade de convite (RF-005) tinha requisito funcional e endpoint — a remoção nunca foi implementada em nenhuma fase.",
+        "Adicionados RF-017 (Excluir coluna) e o endpoint DELETE /columns/:id. RN-004 já descrevia o comportamento completo (mover tarefas para a primeira coluna restante, ou bloquear a exclusão se for a única), mas nunca teve um RF ou endpoint dedicado — nenhuma fase anterior implementou exclusão de coluna.",
+        "Adicionado o endpoint GET /health ao array api_endpoints. Ele existe desde a Fase 1 e já era citado em texto livre no RNF-009, mas nunca havia sido listado formalmente entre os endpoints da API."
+      ]
     }
   ],
   "functional_requirements": [
@@ -53,7 +63,9 @@
     { "id": "RF-012", "name": "Excluir tarefa", "priority": "medium", "description": "Membro pode excluir uma tarefa.", "acceptance_criteria": ["Exige confirmação prévia no frontend", "Exclusão é definitiva (hard delete) ou lógica, a definir na implementação"] },
     { "id": "RF-013", "name": "Comentar em tarefa", "priority": "medium", "description": "Membro pode adicionar comentários em uma tarefa.", "acceptance_criteria": ["Comentário associado ao autor e timestamp"] },
     { "id": "RF-014", "name": "Histórico de atividades", "priority": "low", "description": "Sistema registra e exibe histórico de alterações relevantes de uma tarefa.", "acceptance_criteria": ["Eventos: criação, mudança de status, atribuição, edição de campos principais"] },
-    { "id": "RF-015", "name": "Filtrar e buscar tarefas", "priority": "medium", "description": "Membro pode filtrar tarefas por responsável, status e prazo, e buscar por título.", "acceptance_criteria": ["Filtros combináveis via query params na API"] }
+    { "id": "RF-015", "name": "Filtrar e buscar tarefas", "priority": "medium", "description": "Membro pode filtrar tarefas por responsável, status e prazo, e buscar por título.", "acceptance_criteria": ["Filtros combináveis via query params na API"] },
+    { "id": "RF-016", "name": "Remover membro", "priority": "medium", "description": "Administrador pode remover um membro da organização.", "acceptance_criteria": ["Apenas ADMIN pode remover (RN-002)", "Membro removido perde acesso aos quadros da organização"] },
+    { "id": "RF-017", "name": "Excluir coluna", "priority": "medium", "description": "Membro pode excluir uma coluna de um quadro.", "acceptance_criteria": ["Tarefas da coluna excluída são movidas para a primeira coluna restante do quadro (RN-004)", "Exclusão é bloqueada se for a única coluna do quadro"] }
   ],
   "non_functional_requirements": [
     { "id": "RNF-001", "category": "security", "description": "Senhas devem ser armazenadas com hash (bcrypt/argon2); nunca em texto plano." },
@@ -170,6 +182,7 @@
     ]
   },
   "api_endpoints": [
+    { "method": "GET", "path": "/health", "description": "Health-check da API (RNF-009)", "auth_required": false },
     { "method": "POST", "path": "/auth/register", "description": "Cadastrar novo usuário", "auth_required": false },
     { "method": "POST", "path": "/auth/login", "description": "Autenticar usuário", "auth_required": false },
     { "method": "POST", "path": "/auth/refresh", "description": "Renovar access token", "auth_required": "refresh_token" },
@@ -178,11 +191,13 @@
     { "method": "POST", "path": "/organizations", "description": "Criar organização", "auth_required": true },
     { "method": "POST", "path": "/organizations/:id/invites", "description": "Convidar membro", "auth_required": "admin" },
     { "method": "GET", "path": "/organizations/:id/members", "description": "Listar membros de uma organização", "auth_required": true },
+    { "method": "DELETE", "path": "/organizations/:id/members/:memberId", "description": "Remover membro da organização", "auth_required": "admin" },
     { "method": "GET", "path": "/boards", "description": "Listar quadros de uma organização", "query_params": ["organizationId"], "auth_required": true },
     { "method": "POST", "path": "/boards", "description": "Criar quadro", "auth_required": true },
     { "method": "GET", "path": "/boards/:id/columns", "description": "Listar colunas de um quadro", "auth_required": true },
     { "method": "POST", "path": "/boards/:id/columns", "description": "Criar coluna", "auth_required": true },
     { "method": "PATCH", "path": "/columns/:id/reorder", "description": "Reordenar coluna", "auth_required": true },
+    { "method": "DELETE", "path": "/columns/:id", "description": "Excluir coluna (tarefas movidas para a primeira coluna restante)", "auth_required": true },
     { "method": "POST", "path": "/columns/:id/tasks", "description": "Criar tarefa", "auth_required": true },
     { "method": "PATCH", "path": "/tasks/:id", "description": "Editar tarefa", "auth_required": true },
     { "method": "PATCH", "path": "/tasks/:id/move", "description": "Mover tarefa entre colunas", "auth_required": true },

@@ -19,3 +19,8 @@ export function inviteMember(
 ): Promise<Membership> {
   return request(`/organizations/${organizationId}/invites`, { method: 'POST', body: data });
 }
+
+/** RN-002: apenas ADMIN pode remover membros. `membershipId` é o `id` retornado por listMembers. */
+export function removeMember(organizationId: string, membershipId: string): Promise<void> {
+  return request(`/organizations/${organizationId}/members/${membershipId}`, { method: 'DELETE' });
+}

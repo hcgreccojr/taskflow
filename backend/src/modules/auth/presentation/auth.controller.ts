@@ -1,5 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../infrastructure/decorators/public.decorator';
 import { RegisterUserUseCase } from '../application/use-cases/register-user.use-case';
 import { LoginUseCase } from '../application/use-cases/login.use-case';
@@ -21,6 +21,10 @@ export class AuthController {
 
   @Public()
   @Post('register')
+  @ApiOperation({ summary: 'Cadastrar novo usuário' })
+  @ApiCreatedResponse({ type: UserResponseDto })
+  @ApiResponse({ status: 409, description: 'E-mail já cadastrado' })
+  @ApiResponse({ status: 400, description: 'Dados inválidos (e-mail inválido, senha < 8 caracteres)' })
   async register(@Body() dto: RegisterDto): Promise<UserResponseDto> {
     const user = await this.registerUserUseCase.execute(dto);
     return UserResponseDto.fromDomain(user);
@@ -28,12 +32,18 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @ApiOperation({ summary: 'Autenticar usuário' })
+  @ApiCreatedResponse({ type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Credenciais inválidas' })
   async login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
     return this.loginUseCase.execute(dto);
   }
 
   @Public()
   @Post('refresh')
+  @ApiOperation({ summary: 'Renovar access token usando um refresh token válido' })
+  @ApiCreatedResponse({ type: RefreshResponseDto })
+  @ApiResponse({ status: 401, description: 'Refresh token inválido ou expirado' })
   refresh(@Body() dto: RefreshDto): RefreshResponseDto {
     return this.refreshTokenUseCase.execute(dto.refreshToken);
   }

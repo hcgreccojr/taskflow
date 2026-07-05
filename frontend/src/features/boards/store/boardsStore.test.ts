@@ -145,4 +145,19 @@ describe('boardsStore', () => {
 
     expect(useBoardsStore.getState().tasksByColumn['col-1']).toEqual([]);
   });
+
+  it('deleteColumn calls the API and refetches the board data (RN-004 is server-side)', async () => {
+    vi.mocked(columnsApi.deleteColumn).mockResolvedValue(undefined);
+    vi.mocked(columnsApi.listColumns).mockResolvedValue([
+      { id: 'col-1', boardId: 'board-1', name: 'A Fazer', order: 0 },
+    ]);
+    vi.mocked(tasksApi.listTasksByColumn).mockResolvedValue([]);
+
+    await useBoardsStore.getState().deleteColumn('board-1', 'col-2');
+
+    expect(columnsApi.deleteColumn).toHaveBeenCalledWith('col-2');
+    expect(useBoardsStore.getState().columnsByBoard['board-1']).toEqual([
+      { id: 'col-1', boardId: 'board-1', name: 'A Fazer', order: 0 },
+    ]);
+  });
 });

@@ -8,6 +8,7 @@ import { Avatar } from '../../../shared/components/Avatar';
 import { TextField } from '../../../shared/components/TextField';
 import { Select } from '../../../shared/components/Select';
 import { Button } from '../../../shared/components/Button';
+import { ConfirmDialog } from '../../../shared/components/ConfirmDialog';
 import { useToastStore } from '../../../shared/store/toastStore';
 import { ApiError } from '../../../services/httpClient';
 import { emptyArray } from '../../../shared/utils/emptyArray';
@@ -20,12 +21,14 @@ export function MembersPage() {
   const members = useOrganizationsStore((state) => state.membersByOrg[orgId] ?? emptyArray<Member>());
   const fetchMembers = useOrganizationsStore((state) => state.fetchMembers);
   const inviteMember = useOrganizationsStore((state) => state.inviteMember);
+  const removeMember = useOrganizationsStore((state) => state.removeMember);
   const pushToast = useToastStore((state) => state.push);
 
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<MembershipRole>('MEMBER');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [removingMember, setRemovingMember] = useState<Member | null>(null);
 
   useEffect(() => {
     if (orgId) fetchMembers(orgId);
@@ -45,6 +48,18 @@ export function MembersPage() {
       setError(err instanceof ApiError ? err.messages.join(' ') : 'Não foi possível convidar.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function onConfirmRemove() {
+    if (!removingMember) return;
+    try {
+      await removeMember(orgId, removingMember.id);
+      pushToast('Membro removido');
+    } catch {
+      pushToast('Não foi possível remover o membro', 'error');
+    } finally {
+      setRemovingMember(null);
     }
   }
 
@@ -68,6 +83,11 @@ export function MembersPage() {
               <span className={`${styles.badge} ${member.role === 'ADMIN' ? styles.badgeAdmin : ''}`}>
                 {member.role}
               </span>
+              {isAdmin && (
+                <Button variant="ghost" onClick={() => setRemovingMember(member)}>
+                  Remover
+                </Button>
+              )}
             </div>
           ))}
         </div>
@@ -97,6 +117,16 @@ export function MembersPage() {
           <p className={styles.note}>Apenas administradores podem convidar membros.</p>
         )}
       </div>
+
+      {removingMember && (
+        <ConfirmDialog
+          title="Remover membro"
+          description={`${removingMember.name} perderá o acesso a esta organização. Esta ação não pode ser desfeita.`}
+          confirmLabel="Remover membro"
+          onConfirm={onConfirmRemove}
+          onCancel={() => setRemovingMember(null)}
+        />
+      )}
     </div>
   );
 }

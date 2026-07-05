@@ -58,4 +58,23 @@ describe('organizationsStore', () => {
     });
     expect(organizationsApi.listMembers).toHaveBeenCalledWith('org-1');
   });
+
+  it('removeMember removes the membership from the cached list', async () => {
+    useOrganizationsStore.setState({
+      membersByOrg: {
+        'org-1': [
+          { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'ADMIN', name: 'Ana', email: 'ana@example.com' },
+          { id: 'm2', userId: 'user-2', organizationId: 'org-1', role: 'MEMBER', name: 'Bruno', email: 'bruno@example.com' },
+        ],
+      },
+    });
+    vi.mocked(organizationsApi.removeMember).mockResolvedValue(undefined);
+
+    await useOrganizationsStore.getState().removeMember('org-1', 'm2');
+
+    expect(organizationsApi.removeMember).toHaveBeenCalledWith('org-1', 'm2');
+    expect(useOrganizationsStore.getState().membersByOrg['org-1']).toEqual([
+      { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'ADMIN', name: 'Ana', email: 'ana@example.com' },
+    ]);
+  });
 });

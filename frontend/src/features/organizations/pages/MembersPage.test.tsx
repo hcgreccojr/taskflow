@@ -1,11 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MembersPage } from './MembersPage';
 import type { Member } from '../../../shared/types/api';
 
 const fetchMembers = vi.fn();
 const inviteMember = vi.fn();
+const removeMember = vi.fn();
 
 let members: Member[] = [];
 
@@ -13,6 +14,7 @@ interface FakeOrganizationsState {
   membersByOrg: Record<string, Member[]>;
   fetchMembers: typeof fetchMembers;
   inviteMember: typeof inviteMember;
+  removeMember: typeof removeMember;
 }
 
 interface FakeAuthState {
@@ -22,7 +24,7 @@ interface FakeAuthState {
 
 vi.mock('../store/organizationsStore', () => ({
   useOrganizationsStore: (selector: (state: FakeOrganizationsState) => unknown) =>
-    selector({ membersByOrg: { 'org-1': members }, fetchMembers, inviteMember }),
+    selector({ membersByOrg: { 'org-1': members }, fetchMembers, inviteMember, removeMember }),
 }));
 
 vi.mock('../../auth/store/authStore', () => ({
@@ -44,6 +46,10 @@ function renderPage() {
 }
 
 describe('MembersPage', () => {
+  beforeEach(() => {
+    removeMember.mockReset();
+  });
+
   it('shows the invite form when the current user is an ADMIN', () => {
     members = [
       { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'ADMIN', name: 'Ana', email: 'ana@example.com' },
@@ -63,5 +69,44 @@ describe('MembersPage', () => {
 
     expect(screen.queryByText('Convidar membro')).not.toBeInTheDocument();
     expect(screen.getByText('Apenas administradores podem convidar membros.')).toBeInTheDocument();
+  });
+
+  it('shows a Remover button per member when the current user is an ADMIN', () => {
+    members = [
+      { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'ADMIN', name: 'Ana', email: 'ana@example.com' },
+      { id: 'm2', userId: 'user-2', organizationId: 'org-1', role: 'MEMBER', name: 'Bruno', email: 'bruno@example.com' },
+    ];
+
+    renderPage();
+
+    expect(screen.getAllByRole('button', { name: 'Remover' })).toHaveLength(2);
+  });
+
+  it('hides the Remover button when the current user is not an ADMIN', () => {
+    members = [
+      { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'MEMBER', name: 'Ana', email: 'ana@example.com' },
+    ];
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Remover' })).not.toBeInTheDocument();
+  });
+
+  it('asks for confirmation and calls removeMember with the membership id', async () => {
+    members = [
+      { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'ADMIN', name: 'Ana', email: 'ana@example.com' },
+      { id: 'm2', userId: 'user-2', organizationId: 'org-1', role: 'MEMBER', name: 'Bruno', email: 'bruno@example.com' },
+    ];
+    removeMember.mockResolvedValue(undefined);
+
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remover' })[1]);
+    expect(screen.getByRole('heading', { name: 'Remover membro' })).toBeInTheDocument();
+    expect(removeMember).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover membro' }));
+
+    await waitFor(() => expect(removeMember).toHaveBeenCalledWith('org-1', 'm2'));
   });
 });

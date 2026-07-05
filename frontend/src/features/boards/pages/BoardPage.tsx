@@ -35,6 +35,7 @@ export function BoardPage() {
   const fetchBoardData = useBoardsStore((state) => state.fetchBoardData);
   const createTask = useBoardsStore((state) => state.createTask);
   const createColumn = useBoardsStore((state) => state.createColumn);
+  const deleteColumn = useBoardsStore((state) => state.deleteColumn);
   const moveTask = useBoardsStore((state) => state.moveTask);
   const reorderColumns = useBoardsStore((state) => state.reorderColumns);
 
@@ -95,6 +96,15 @@ export function BoardPage() {
     setAddingColumn(false);
   }
 
+  async function onDeleteColumn(columnId: string) {
+    try {
+      await deleteColumn(boardId, columnId);
+      pushToast('Coluna excluída');
+    } catch {
+      pushToast('Não foi possível excluir a coluna (precisa haver outra coluna no quadro)', 'error');
+    }
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -130,6 +140,7 @@ export function BoardPage() {
                 membersById={membersById}
                 onOpenTask={setSelectedTaskId}
                 onCreateTask={(columnId, title) => createTask(columnId, { title })}
+                onDeleteColumn={onDeleteColumn}
               />
             ))}
           </SortableContext>

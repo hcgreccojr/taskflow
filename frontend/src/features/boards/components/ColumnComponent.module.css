@@ -11,6 +11,14 @@
   align-items: center;
   gap: 8px;
   padding: 8px 4px;
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
   cursor: grab;
 }
 
@@ -31,6 +39,21 @@
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  border-radius: 6px;
+}
+
+.deleteButton:hover {
+  color: var(--color-priority-high-fg);
+  background: var(--color-priority-high-bg);
 }
 
 .body {

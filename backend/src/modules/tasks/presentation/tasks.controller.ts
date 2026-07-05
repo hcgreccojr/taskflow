@@ -1,5 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/infrastructure/decorators/current-user.decorator';
 import { TokenPayload } from '../../auth/application/ports/token.service.port';
 import { CreateTaskUseCase } from '../application/use-cases/create-task.use-case';
@@ -29,6 +36,11 @@ export class TasksController {
   ) {}
 
   @Post('columns/:id/tasks')
+  @ApiOperation({ summary: 'Criar tarefa em uma coluna' })
+  @ApiCreatedResponse({ type: TaskResponseDto })
+  @ApiResponse({ status: 404, description: 'Coluna ou quadro não encontrado' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização do quadro' })
+  @ApiResponse({ status: 422, description: 'Responsável informado não é membro da organização' })
   async create(
     @CurrentUser() user: TokenPayload,
     @Param('id') columnId: string,
@@ -47,6 +59,11 @@ export class TasksController {
   }
 
   @Patch('tasks/:id')
+  @ApiOperation({ summary: 'Editar título, descrição, prazo, responsável e/ou prioridade de uma tarefa' })
+  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiResponse({ status: 404, description: 'Tarefa, coluna ou quadro não encontrado' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização do quadro' })
+  @ApiResponse({ status: 422, description: 'Responsável informado não é membro da organização' })
   async update(
     @CurrentUser() user: TokenPayload,
     @Param('id') taskId: string,
@@ -65,6 +82,11 @@ export class TasksController {
   }
 
   @Patch('tasks/:id/move')
+  @ApiOperation({ summary: 'Mover tarefa entre colunas do mesmo quadro' })
+  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiResponse({ status: 404, description: 'Tarefa, coluna de origem/destino ou quadro não encontrado' })
+  @ApiResponse({ status: 400, description: 'Coluna de destino pertence a outro quadro' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização do quadro' })
   async move(
     @CurrentUser() user: TokenPayload,
     @Param('id') taskId: string,
@@ -80,11 +102,17 @@ export class TasksController {
   }
 
   @Delete('tasks/:id')
+  @ApiOperation({ summary: 'Excluir tarefa (definitivo)' })
+  @ApiResponse({ status: 200, description: 'Tarefa excluída' })
+  @ApiResponse({ status: 404, description: 'Tarefa, coluna ou quadro não encontrado' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização do quadro' })
   async delete(@CurrentUser() user: TokenPayload, @Param('id') taskId: string): Promise<void> {
     await this.deleteTaskUseCase.execute({ requesterId: user.sub, taskId });
   }
 
   @Get('tasks')
+  @ApiOperation({ summary: 'Buscar/filtrar tarefas por responsável, coluna, prazo e/ou título' })
+  @ApiOkResponse({ type: TaskResponseDto, isArray: true })
   async list(
     @CurrentUser() user: TokenPayload,
     @Query() query: ListTasksQueryDto,
@@ -100,6 +128,10 @@ export class TasksController {
   }
 
   @Get('tasks/:id/activity')
+  @ApiOperation({ summary: 'Consultar histórico de atividades de uma tarefa' })
+  @ApiOkResponse({ type: ActivityLogResponseDto, isArray: true })
+  @ApiResponse({ status: 404, description: 'Tarefa, coluna ou quadro não encontrado' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização do quadro' })
   async listActivity(
     @CurrentUser() user: TokenPayload,
     @Param('id') taskId: string,

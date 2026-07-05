@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/infrastructure/decorators/current-user.decorator';
 import { TokenPayload } from '../../auth/application/ports/token.service.port';
 import { CreateBoardUseCase } from '../application/use-cases/create-board.use-case';
@@ -18,6 +18,9 @@ export class BoardsController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Listar quadros de uma organização' })
+  @ApiOkResponse({ type: BoardResponseDto, isArray: true })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização' })
   async list(
     @CurrentUser() user: TokenPayload,
     @Query() query: ListBoardsQueryDto,
@@ -30,6 +33,9 @@ export class BoardsController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Criar quadro' })
+  @ApiCreatedResponse({ type: BoardResponseDto })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização' })
   async create(
     @CurrentUser() user: TokenPayload,
     @Body() dto: CreateBoardDto,

@@ -37,6 +37,10 @@ export class PrismaColumnRepository implements ColumnRepository {
     );
   }
 
+  async delete(id: string): Promise<void> {
+    await this.prisma.column.delete({ where: { id } });
+  }
+
   private toDomain(row: { id: string; boardId: string; name: string; order: number }): Column {
     return new Column(row.id, row.boardId, row.name, row.order);
   }
