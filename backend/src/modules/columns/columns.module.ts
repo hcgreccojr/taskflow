@@ -15,5 +15,6 @@ import { ColumnsController } from './presentation/columns.controller';
     CreateColumnUseCase,
     ReorderColumnUseCase,
   ],
+  exports: [COLUMN_REPOSITORY],
 })
 export class ColumnsModule {}

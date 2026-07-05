@@ -1,7 +1,7 @@
 {
   "project": "TaskFlow",
   "description": "Sistema de gestão de tarefas colaborativo (estilo Trello/Jira simplificado)",
-  "version": "1.1",
+  "version": "1.2",
   "document_type": "requirements",
   "changelog": [
     {
@@ -10,6 +10,14 @@
       "changes": [
         "Adicionado o campo Task.priority (enum LOW/MEDIUM/HIGH, default MEDIUM). A tabela original de Task não o incluía, mas o protótipo hifi (design-handoff.md) usa prioridade extensivamente e o objetivo 2.2.3 do Documento do Projeto já citava 'priorização' de tarefas — evidenciado como lacuna durante a prototipação.",
         "Adicionado o campo ActivityLog.userId (FK -> User, obrigatório) para registrar o autor de cada evento de atividade. A tabela original de ActivityLog não referenciava o ator, mas RF-014 e o protótipo hifi (timeline '<ator> moveu de X para Y') exigem exibir quem praticou a ação."
+      ]
+    },
+    {
+      "version": "1.2",
+      "date": "2026-07-04",
+      "changes": [
+        "Adicionado o query param 'search' ao endpoint GET /tasks. A tabela de api_endpoints só listava assigneeId/status/dueBefore, mas a própria descrição do RF-015 exige 'buscar por título' — lacuna entre o texto do requisito e a tabela de endpoints.",
+        "Esclarecido que o query param 'status' de GET /tasks filtra por columnId exato: não existe campo Task.status no modelo de dados — a coluna representa o estágio/status da tarefa no Kanban (RF-015)."
       ]
     }
   ],
@@ -161,7 +169,7 @@
     { "method": "DELETE", "path": "/tasks/:id", "description": "Excluir tarefa", "auth_required": true },
     { "method": "POST", "path": "/tasks/:id/comments", "description": "Comentar em tarefa", "auth_required": true },
     { "method": "GET", "path": "/tasks/:id/activity", "description": "Consultar histórico de atividades", "auth_required": true },
-    { "method": "GET", "path": "/tasks", "description": "Buscar/filtrar tarefas", "query_params": ["assigneeId", "status", "dueBefore"], "auth_required": true }
+    { "method": "GET", "path": "/tasks", "description": "Buscar/filtrar tarefas", "query_params": ["assigneeId", "status", "dueBefore", "search"], "auth_required": true }
   ],
   "glossary": [
     { "term": "Board", "definition": "Espaço de trabalho que agrupa colunas e tarefas de um time (quadro)." },

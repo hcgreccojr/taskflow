@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { BoardsModule } from './modules/boards/boards.module';
 import { ColumnsModule } from './modules/columns/columns.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ColumnsModule } from './modules/columns/columns.module';
     OrganizationsModule,
     BoardsModule,
     ColumnsModule,
+    TasksModule,
   ],
 })
 export class AppModule {}
