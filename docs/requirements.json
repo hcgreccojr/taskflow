@@ -1,7 +1,7 @@
 {
   "project": "TaskFlow",
   "description": "Sistema de gestão de tarefas colaborativo (estilo Trello/Jira simplificado)",
-  "version": "1.3",
+  "version": "1.4",
   "document_type": "requirements",
   "changelog": [
     {
@@ -26,6 +26,15 @@
       "changes": [
         "Adicionados os endpoints GET /tasks/:id/comments, PATCH /comments/:id e DELETE /comments/:id. A tabela de api_endpoints só listava POST /tasks/:id/comments, mas RN-006 (edição/exclusão de comentários dentro de uma janela de 15 minutos) não faz sentido sem endpoints para listar, editar e excluir comentários.",
         "Corrigida a constraint de chave estrangeira de comments.taskId e activity_logs.taskId de ON DELETE RESTRICT para ON DELETE CASCADE. A migration inicial usava RESTRICT, o que impediria a exclusão definitiva de uma tarefa (RF-012) assim que ela tivesse comentários ou entradas de histórico associadas."
+      ]
+    },
+    {
+      "version": "1.4",
+      "date": "2026-07-05",
+      "changes": [
+        "Adicionado o endpoint GET /users/me. A implementação do frontend (Fase 6) exigiu obter nome/e-mail do usuário autenticado, mas POST /auth/login e POST /auth/refresh só retornam tokens, e o payload do JWT só carrega sub/email — não havia nenhuma forma de recuperar o nome de um usuário já cadastrado após o login.",
+        "Adicionado o endpoint GET /organizations/:id/members. Sem ele não era possível popular o seletor de responsável de uma tarefa, a pilha de avatares de membros do quadro, nem a tela de gestão de membros (RF-005) com dados reais — a única rota existente para membership era POST /organizations/:id/invites (criação), sem leitura correspondente.",
+        "Adicionado o endpoint GET /boards/:id/columns. As colunas de um quadro só eram retornadas no corpo de POST /boards/:id/columns (criação) ou PATCH /columns/:id/reorder (reordenação) — não havia forma de carregar as colunas de um quadro já existente ao simplesmente abrir a tela do quadro."
       ]
     }
   ],
@@ -164,11 +173,14 @@
     { "method": "POST", "path": "/auth/register", "description": "Cadastrar novo usuário", "auth_required": false },
     { "method": "POST", "path": "/auth/login", "description": "Autenticar usuário", "auth_required": false },
     { "method": "POST", "path": "/auth/refresh", "description": "Renovar access token", "auth_required": "refresh_token" },
+    { "method": "GET", "path": "/users/me", "description": "Consultar perfil do usuário autenticado", "auth_required": true },
     { "method": "GET", "path": "/organizations", "description": "Listar organizações do usuário", "auth_required": true },
     { "method": "POST", "path": "/organizations", "description": "Criar organização", "auth_required": true },
     { "method": "POST", "path": "/organizations/:id/invites", "description": "Convidar membro", "auth_required": "admin" },
+    { "method": "GET", "path": "/organizations/:id/members", "description": "Listar membros de uma organização", "auth_required": true },
     { "method": "GET", "path": "/boards", "description": "Listar quadros de uma organização", "query_params": ["organizationId"], "auth_required": true },
     { "method": "POST", "path": "/boards", "description": "Criar quadro", "auth_required": true },
+    { "method": "GET", "path": "/boards/:id/columns", "description": "Listar colunas de um quadro", "auth_required": true },
     { "method": "POST", "path": "/boards/:id/columns", "description": "Criar coluna", "auth_required": true },
     { "method": "PATCH", "path": "/columns/:id/reorder", "description": "Reordenar coluna", "auth_required": true },
     { "method": "POST", "path": "/columns/:id/tasks", "description": "Criar tarefa", "auth_required": true },

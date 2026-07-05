@@ -1,0 +1,36 @@
+.trigger {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 8px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-input);
+}
+
+.trigger:hover {
+  background: var(--color-surface-muted);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.textarea {
+  width: 100%;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  padding: 8px 10px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  resize: vertical;
+  min-height: 56px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}

@@ -1,0 +1,102 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useBoardsStore } from './boardsStore';
+import * as boardsApi from '../../../services/boardsApi';
+import * as columnsApi from '../../../services/columnsApi';
+import * as tasksApi from '../../../services/tasksApi';
+import type { Task } from '../../../shared/types/api';
+
+vi.mock('../../../services/boardsApi');
+vi.mock('../../../services/columnsApi');
+vi.mock('../../../services/tasksApi');
+
+function makeTask(id: string, columnId: string, order: number): Task {
+  return {
+    id,
+    columnId,
+    title: `Tarefa ${id}`,
+    description: null,
+    assigneeId: null,
+    dueDate: null,
+    order,
+    priority: 'MEDIUM',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+describe('boardsStore', () => {
+  beforeEach(() => {
+    useBoardsStore.setState({ boardsByOrg: {}, columnsByBoard: {}, tasksByColumn: {}, loading: false });
+    vi.resetAllMocks();
+  });
+
+  it('createBoard creates the board and 3 default columns sequentially', async () => {
+    vi.mocked(boardsApi.createBoard).mockResolvedValue({
+      id: 'board-1',
+      organizationId: 'org-1',
+      name: 'Sprint 1',
+      description: null,
+    });
+    vi.mocked(columnsApi.createColumn).mockImplementation((boardId, name) =>
+      Promise.resolve({ id: `col-${name}`, boardId, name, order: 0 }),
+    );
+
+    const board = await useBoardsStore.getState().createBoard('org-1', 'Sprint 1');
+
+    expect(board.id).toBe('board-1');
+    expect(columnsApi.createColumn).toHaveBeenCalledTimes(3);
+    expect(columnsApi.createColumn).toHaveBeenNthCalledWith(1, 'board-1', 'A Fazer');
+    expect(columnsApi.createColumn).toHaveBeenNthCalledWith(2, 'board-1', 'Em Progresso');
+    expect(columnsApi.createColumn).toHaveBeenNthCalledWith(3, 'board-1', 'Concluído');
+    expect(useBoardsStore.getState().columnsByBoard['board-1']).toHaveLength(3);
+  });
+
+  it('fetchBoardData loads columns and sorts each column tasks by order', async () => {
+    vi.mocked(columnsApi.listColumns).mockResolvedValue([
+      { id: 'col-1', boardId: 'board-1', name: 'A Fazer', order: 0 },
+    ]);
+    vi.mocked(tasksApi.listTasksByColumn).mockResolvedValue([
+      makeTask('t2', 'col-1', 1),
+      makeTask('t1', 'col-1', 0),
+    ]);
+
+    await useBoardsStore.getState().fetchBoardData('board-1');
+
+    expect(useBoardsStore.getState().tasksByColumn['col-1'].map((t) => t.id)).toEqual(['t1', 't2']);
+  });
+
+  it('moveTask calls the move endpoint and refreshes both affected columns, sorted by order', async () => {
+    vi.mocked(tasksApi.moveTask).mockResolvedValue(makeTask('t1', 'col-2', 0));
+    vi.mocked(tasksApi.listTasksByColumn)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([makeTask('t3', 'col-2', 1), makeTask('t1', 'col-2', 0)]);
+
+    await useBoardsStore.getState().moveTask('t1', 'col-1', 'col-2', 0);
+
+    expect(tasksApi.moveTask).toHaveBeenCalledWith('t1', 'col-2', 0);
+    expect(useBoardsStore.getState().tasksByColumn['col-2'].map((t) => t.id)).toEqual(['t1', 't3']);
+    expect(useBoardsStore.getState().tasksByColumn['col-1']).toEqual([]);
+  });
+
+  it('reorderColumns replaces the board columns with the server response', async () => {
+    const reordered = [
+      { id: 'col-2', boardId: 'board-1', name: 'Em Progresso', order: 0 },
+      { id: 'col-1', boardId: 'board-1', name: 'A Fazer', order: 1 },
+    ];
+    vi.mocked(columnsApi.reorderColumn).mockResolvedValue(reordered);
+
+    await useBoardsStore.getState().reorderColumns('board-1', 'col-2', 0);
+
+    expect(useBoardsStore.getState().columnsByBoard['board-1']).toEqual(reordered);
+  });
+
+  it('deleteTask removes the task from local state after the API call succeeds', async () => {
+    useBoardsStore.setState({
+      tasksByColumn: { 'col-1': [makeTask('t1', 'col-1', 0)] },
+    });
+    vi.mocked(tasksApi.deleteTask).mockResolvedValue(undefined);
+
+    await useBoardsStore.getState().deleteTask('t1', 'col-1');
+
+    expect(useBoardsStore.getState().tasksByColumn['col-1']).toEqual([]);
+  });
+});

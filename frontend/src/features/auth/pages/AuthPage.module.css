@@ -1,0 +1,75 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.hero {
+  flex: 1.05;
+  min-width: 320px;
+  background: var(--color-accent);
+  color: #fff;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+}
+
+.heroBody {
+  max-width: 420px;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+  margin-bottom: 12px;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-bottom: 24px;
+}
+
+.bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  opacity: 0.92;
+}
+
+.version {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  opacity: 0.7;
+}
+
+.formSide {
+  flex: 1;
+  min-width: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.formWrapper {
+  width: 100%;
+  max-width: 376px;
+}

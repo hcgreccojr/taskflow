@@ -10,5 +10,6 @@ export interface CreateMembershipData {
 
 export interface MembershipRepository {
   findByUserAndOrganization(userId: string, organizationId: string): Promise<Membership | null>;
+  findByOrganization(organizationId: string): Promise<Membership[]>;
   create(data: CreateMembershipData): Promise<Membership>;
 }

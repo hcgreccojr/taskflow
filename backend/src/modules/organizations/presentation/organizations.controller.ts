@@ -5,10 +5,12 @@ import { TokenPayload } from '../../auth/application/ports/token.service.port';
 import { CreateOrganizationUseCase } from '../application/use-cases/create-organization.use-case';
 import { ListOrganizationsUseCase } from '../application/use-cases/list-organizations.use-case';
 import { InviteMemberUseCase } from '../application/use-cases/invite-member.use-case';
+import { ListMembersUseCase } from '../application/use-cases/list-members.use-case';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { OrganizationResponseDto } from './dto/organization-response.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
+import { MemberResponseDto } from './dto/member-response.dto';
 
 @ApiTags('organizations')
 @ApiBearerAuth()
@@ -18,6 +20,7 @@ export class OrganizationsController {
     private readonly createOrganizationUseCase: CreateOrganizationUseCase,
     private readonly listOrganizationsUseCase: ListOrganizationsUseCase,
     private readonly inviteMemberUseCase: InviteMemberUseCase,
+    private readonly listMembersUseCase: ListMembersUseCase,
   ) {}
 
   @Get()
@@ -51,5 +54,17 @@ export class OrganizationsController {
       role: dto.role,
     });
     return MembershipResponseDto.fromDomain(membership);
+  }
+
+  @Get(':id/members')
+  async listMembers(
+    @CurrentUser() user: TokenPayload,
+    @Param('id') organizationId: string,
+  ): Promise<MemberResponseDto[]> {
+    const members = await this.listMembersUseCase.execute({
+      requesterId: user.sub,
+      organizationId,
+    });
+    return members.map(MemberResponseDto.fromDomain);
   }
 }

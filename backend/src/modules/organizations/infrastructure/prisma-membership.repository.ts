@@ -21,6 +21,11 @@ export class PrismaMembershipRepository implements MembershipRepository {
     return row ? this.toDomain(row) : null;
   }
 
+  async findByOrganization(organizationId: string): Promise<Membership[]> {
+    const rows = await this.prisma.membership.findMany({ where: { organizationId } });
+    return rows.map((row) => this.toDomain(row));
+  }
+
   async create(data: CreateMembershipData): Promise<Membership> {
     const row = await this.prisma.membership.create({
       data: {

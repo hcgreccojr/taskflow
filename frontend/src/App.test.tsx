@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { App } from './App';
 
 describe('App', () => {
-  it('renders the TaskFlow heading', () => {
+  it('redirects an unauthenticated visitor to the login screen', async () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: 'TaskFlow' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Login' })).toBeInTheDocument();
   });
 });

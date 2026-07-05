@@ -1,0 +1,24 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-chip);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.overdue {
+  background: var(--color-due-overdue-bg);
+  color: var(--color-due-overdue-fg);
+}
+
+.warn {
+  background: var(--color-due-warn-bg);
+  color: var(--color-due-warn-fg);
+}
+
+.ok {
+  background: var(--color-due-ok-bg);
+  color: var(--color-due-ok-fg);
+}

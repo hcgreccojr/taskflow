@@ -1,0 +1,25 @@
+.container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.toast {
+  animation: toast-in 0.22s ease-out;
+  background: var(--color-ink);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--radius-input);
+  box-shadow: var(--shadow-toast);
+  font-size: 13px;
+  max-width: 360px;
+}
+
+.error {
+  background: var(--color-priority-high-fg);
+}

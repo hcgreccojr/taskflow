@@ -8,6 +8,7 @@ import { MembershipCheckerService } from './application/services/membership-chec
 import { CreateOrganizationUseCase } from './application/use-cases/create-organization.use-case';
 import { ListOrganizationsUseCase } from './application/use-cases/list-organizations.use-case';
 import { InviteMemberUseCase } from './application/use-cases/invite-member.use-case';
+import { ListMembersUseCase } from './application/use-cases/list-members.use-case';
 import { OrganizationsController } from './presentation/organizations.controller';
 
 @Module({
@@ -20,6 +21,7 @@ import { OrganizationsController } from './presentation/organizations.controller
     CreateOrganizationUseCase,
     ListOrganizationsUseCase,
     InviteMemberUseCase,
+    ListMembersUseCase,
   ],
   exports: [MembershipCheckerService, ORGANIZATION_REPOSITORY, MEMBERSHIP_REPOSITORY],
 })

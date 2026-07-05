@@ -1,0 +1,71 @@
+:root {
+  /* Cores base */
+  --color-canvas: #eceae3;
+  --color-surface: #ffffff;
+  --color-surface-soft: #faf9f6;
+  --color-surface-muted: #f2f0ea;
+
+  --color-ink: #17181c;
+  --color-text-secondary: #6b7076;
+  --color-text-muted: #8a8e95;
+  --color-text-mono-muted: #a2a6ad;
+
+  --color-border: rgba(23, 24, 28, 0.1);
+  --color-border-strong: rgba(23, 24, 28, 0.14);
+  --color-border-soft: rgba(23, 24, 28, 0.08);
+
+  --color-accent: #2e56e6;
+  --color-accent-alt-violet: #6b4ee6;
+  --color-accent-alt-green: #0e8f6e;
+  --color-accent-alt-orange: #e0603c;
+
+  /* Cores de coluna */
+  --color-column-backlog: #8a8e95;
+  --color-column-todo: #2e56e6;
+  --color-column-progress: #e8930c;
+  --color-column-review: #6b4ee6;
+  --color-column-done: #2f9e68;
+
+  /* Prioridade */
+  --color-priority-high-dot: #e5484d;
+  --color-priority-high-bg: #fce9ea;
+  --color-priority-high-fg: #b4242a;
+
+  --color-priority-medium-dot: #e8930c;
+  --color-priority-medium-bg: #fdf0da;
+  --color-priority-medium-fg: #95590a;
+
+  --color-priority-low-dot: #2f9e68;
+  --color-priority-low-bg: #e4f5ec;
+  --color-priority-low-fg: #1c7a48;
+
+  /* Prazo */
+  --color-due-overdue-fg: #b4242a;
+  --color-due-overdue-bg: #fce9ea;
+  --color-due-warn-fg: #95590a;
+  --color-due-warn-bg: #fdf0da;
+  --color-due-ok-fg: #6b7076;
+  --color-due-ok-bg: #f2f0ea;
+  --color-due-done-fg: #1c7a48;
+  --color-due-done-bg: #e4f5ec;
+
+  /* Tipografia */
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Raios */
+  --radius-card: 14px;
+  --radius-input: 10px;
+  --radius-pill: 20px;
+  --radius-modal: 16px;
+  --radius-chip: 6px;
+
+  /* Sombras */
+  --shadow-card: 0 1px 2px rgba(23, 24, 28, 0.05);
+  --shadow-modal: 0 24px 70px rgba(0, 0, 0, 0.28);
+  --shadow-toast: 0 12px 34px rgba(0, 0, 0, 0.32);
+
+  /* Layout */
+  --topbar-height: 60px;
+}

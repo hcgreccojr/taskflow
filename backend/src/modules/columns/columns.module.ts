@@ -5,6 +5,7 @@ import { COLUMN_REPOSITORY } from './application/ports/column-repository.port';
 import { PrismaColumnRepository } from './infrastructure/prisma-column.repository';
 import { CreateColumnUseCase } from './application/use-cases/create-column.use-case';
 import { ReorderColumnUseCase } from './application/use-cases/reorder-column.use-case';
+import { ListColumnsUseCase } from './application/use-cases/list-columns.use-case';
 import { ColumnsController } from './presentation/columns.controller';
 
 @Module({
@@ -14,6 +15,7 @@ import { ColumnsController } from './presentation/columns.controller';
     { provide: COLUMN_REPOSITORY, useClass: PrismaColumnRepository },
     CreateColumnUseCase,
     ReorderColumnUseCase,
+    ListColumnsUseCase,
   ],
   exports: [COLUMN_REPOSITORY],
 })

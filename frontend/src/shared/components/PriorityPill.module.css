@@ -1,0 +1,42 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.high {
+  background: var(--color-priority-high-bg);
+  color: var(--color-priority-high-fg);
+}
+.high .dot {
+  background: var(--color-priority-high-dot);
+}
+
+.medium {
+  background: var(--color-priority-medium-bg);
+  color: var(--color-priority-medium-fg);
+}
+.medium .dot {
+  background: var(--color-priority-medium-dot);
+}
+
+.low {
+  background: var(--color-priority-low-bg);
+  color: var(--color-priority-low-fg);
+}
+.low .dot {
+  background: var(--color-priority-low-dot);
+}
