@@ -31,6 +31,15 @@ describe('ReorderColumnUseCase', () => {
     );
   });
 
+  it('throws NotFoundException when the board does not exist', async () => {
+    columnRepository.findById.mockResolvedValue(columns[0]);
+    boardRepository.findById.mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({ requesterId: 'user-1', columnId: 'col-1', order: 0 }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('throws NotFoundException when the column does not exist', async () => {
     columnRepository.findById.mockResolvedValue(null);
 

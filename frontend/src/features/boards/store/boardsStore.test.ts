@@ -89,6 +89,52 @@ describe('boardsStore', () => {
     expect(useBoardsStore.getState().columnsByBoard['board-1']).toEqual(reordered);
   });
 
+  it('fetchBoards loads the boards of an organization', async () => {
+    vi.mocked(boardsApi.listBoards).mockResolvedValue([
+      { id: 'board-1', organizationId: 'org-1', name: 'Sprint 1', description: null },
+    ]);
+
+    await useBoardsStore.getState().fetchBoards('org-1');
+
+    expect(useBoardsStore.getState().boardsByOrg['org-1']).toHaveLength(1);
+  });
+
+  it('createColumn appends the new column and initializes its empty task list', async () => {
+    vi.mocked(columnsApi.createColumn).mockResolvedValue({
+      id: 'col-new',
+      boardId: 'board-1',
+      name: 'Revisão',
+      order: 3,
+    });
+
+    await useBoardsStore.getState().createColumn('board-1', 'Revisão');
+
+    expect(useBoardsStore.getState().columnsByBoard['board-1']).toEqual([
+      { id: 'col-new', boardId: 'board-1', name: 'Revisão', order: 3 },
+    ]);
+    expect(useBoardsStore.getState().tasksByColumn['col-new']).toEqual([]);
+  });
+
+  it('createTask appends the created task to its column, sorted by order', async () => {
+    useBoardsStore.setState({ tasksByColumn: { 'col-1': [makeTask('t1', 'col-1', 0)] } });
+    vi.mocked(tasksApi.createTask).mockResolvedValue(makeTask('t2', 'col-1', 1));
+
+    await useBoardsStore.getState().createTask('col-1', { title: 'Nova tarefa' });
+
+    expect(useBoardsStore.getState().tasksByColumn['col-1'].map((t) => t.id)).toEqual(['t1', 't2']);
+  });
+
+  it('updateTask replaces the task in place within its column', async () => {
+    useBoardsStore.setState({ tasksByColumn: { 'col-1': [makeTask('t1', 'col-1', 0)] } });
+    const updated = { ...makeTask('t1', 'col-1', 0), title: 'Atualizada' };
+    vi.mocked(tasksApi.updateTask).mockResolvedValue(updated);
+
+    const result = await useBoardsStore.getState().updateTask('t1', 'col-1', { title: 'Atualizada' });
+
+    expect(useBoardsStore.getState().tasksByColumn['col-1']).toEqual([updated]);
+    expect(result).toEqual(updated);
+  });
+
   it('deleteTask removes the task from local state after the API call succeeds', async () => {
     useBoardsStore.setState({
       tasksByColumn: { 'col-1': [makeTask('t1', 'col-1', 0)] },

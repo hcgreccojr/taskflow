@@ -39,15 +39,76 @@ jobs:
       - name: Backend prisma generate
         working-directory: backend
         run: npx prisma generate
-      - name: Backend test
+      - name: Backend test (with coverage quality gate)
         working-directory: backend
-        run: npm test -- --coverage
+        run: npm run test:cov
       - name: Frontend install
         working-directory: frontend
         run: npm ci
-      - name: Frontend test
+      - name: Frontend test (with coverage quality gate)
         working-directory: frontend
-        run: npm test
+        run: npm run test:coverage
+
+  test-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: taskflow
+          POSTGRES_PASSWORD: taskflow
+          POSTGRES_DB: taskflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U taskflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Backend install
+        working-directory: backend
+        run: npm ci
+      - name: Backend e2e tests (Supertest + Postgres real)
+        working-directory: backend
+        run: npm run test:e2e
+
+  e2e-playwright:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create .env for docker-compose
+        run: cp .env.example .env
+      - name: Start full stack
+        run: docker compose up -d --build
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health; then exit 0; fi
+            sleep 2
+          done
+          echo "Backend did not become healthy in time" >&2
+          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Frontend install
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright e2e tests
+        working-directory: frontend
+        run: npm run test:e2e
+      - name: Stop stack
+        if: always()
+        run: docker compose down
 
   build:
     needs: [lint, test]
@@ -74,7 +135,7 @@ jobs:
         run: npm run build
 
   docker:
-    needs: [build]
+    needs: [build, test-e2e, e2e-playwright]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

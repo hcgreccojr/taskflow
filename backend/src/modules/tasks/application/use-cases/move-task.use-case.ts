@@ -1,10 +1,9 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { BoardRepository, BOARD_REPOSITORY } from '../../../boards/application/ports/board-repository.port';
 import { ColumnRepository, COLUMN_REPOSITORY } from '../../../columns/application/ports/column-repository.port';
-import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
 import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
 import { Task } from '../../domain/task.entity';
 import { TaskRepository, TASK_REPOSITORY } from '../ports/task-repository.port';
+import { TaskAccessService } from '../services/task-access.service';
 
 export interface MoveTaskInput {
   requesterId: string;
@@ -18,21 +17,15 @@ export class MoveTaskUseCase {
   constructor(
     @Inject(TASK_REPOSITORY) private readonly taskRepository: TaskRepository,
     @Inject(COLUMN_REPOSITORY) private readonly columnRepository: ColumnRepository,
-    @Inject(BOARD_REPOSITORY) private readonly boardRepository: BoardRepository,
-    private readonly membershipChecker: MembershipCheckerService,
     private readonly activityLogRecorder: ActivityLogRecorderService,
+    private readonly taskAccessService: TaskAccessService,
   ) {}
 
   async execute(input: MoveTaskInput): Promise<Task> {
-    const task = await this.taskRepository.findById(input.taskId);
-    if (!task) {
-      throw new NotFoundException('Tarefa não encontrada');
-    }
-
-    const sourceColumn = await this.columnRepository.findById(task.columnId);
-    if (!sourceColumn) {
-      throw new NotFoundException('Coluna de origem não encontrada');
-    }
+    const { task, column: sourceColumn } = await this.taskAccessService.resolve(
+      input.taskId,
+      input.requesterId,
+    );
 
     const targetColumn = await this.columnRepository.findById(input.columnId);
     if (!targetColumn) {
@@ -44,13 +37,6 @@ export class MoveTaskUseCase {
         'Não é permitido mover uma tarefa para uma coluna de outro quadro',
       );
     }
-
-    const board = await this.boardRepository.findById(targetColumn.boardId);
-    if (!board) {
-      throw new NotFoundException('Quadro não encontrado');
-    }
-
-    await this.membershipChecker.assertMember(input.requesterId, board.organizationId);
 
     if (task.columnId === targetColumn.id) {
       return this.reorderWithinColumn(task, input.order);

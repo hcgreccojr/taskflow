@@ -41,6 +41,15 @@ describe('CreateTaskUseCase', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('throws NotFoundException when the board does not exist', async () => {
+    columnRepository.findById.mockResolvedValue(new Column('col-1', 'board-missing', 'A Fazer', 0));
+    boardRepository.findById.mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({ requesterId: 'user-1', columnId: 'col-1', title: 'Nova tarefa' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('propagates ForbiddenException when the requester is not a member', async () => {
     columnRepository.findById.mockResolvedValue(new Column('col-1', 'board-1', 'A Fazer', 0));
     boardRepository.findById.mockResolvedValue(new Board('board-1', 'org-1', 'Sprint 1', null));
