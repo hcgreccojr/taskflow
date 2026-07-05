@@ -1,4 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiCreatedResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from '../infrastructure/decorators/public.decorator';
 import { RegisterUserUseCase } from '../application/use-cases/register-user.use-case';
@@ -10,6 +11,8 @@ import { RefreshDto } from './dto/refresh.dto';
 import { AuthResponseDto, RefreshResponseDto } from './dto/auth-response.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 
+const AUTH_THROTTLE_LIMIT = Number(process.env.AUTH_THROTTLE_LIMIT ?? 5);
+
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -20,6 +23,7 @@ export class AuthController {
   ) {}
 
   @Public()
+  @Throttle({ default: { limit: AUTH_THROTTLE_LIMIT, ttl: 60000 } })
   @Post('register')
   @ApiOperation({ summary: 'Cadastrar novo usuário' })
   @ApiCreatedResponse({ type: UserResponseDto })
@@ -31,6 +35,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: AUTH_THROTTLE_LIMIT, ttl: 60000 } })
   @Post('login')
   @ApiOperation({ summary: 'Autenticar usuário' })
   @ApiCreatedResponse({ type: AuthResponseDto })

@@ -6,11 +6,17 @@ describe('RegisterUserUseCase', () => {
   let useCase: RegisterUserUseCase;
   let userRepository: { findByEmail: jest.Mock; create: jest.Mock };
   let passwordHasher: { hash: jest.Mock };
+  let pendingInviteAcceptor: { acceptPendingInvites: jest.Mock };
 
   beforeEach(() => {
     userRepository = { findByEmail: jest.fn(), create: jest.fn() };
     passwordHasher = { hash: jest.fn() };
-    useCase = new RegisterUserUseCase(userRepository as any, passwordHasher as any);
+    pendingInviteAcceptor = { acceptPendingInvites: jest.fn() };
+    useCase = new RegisterUserUseCase(
+      userRepository as any,
+      passwordHasher as any,
+      pendingInviteAcceptor as any,
+    );
   });
 
   it('throws ConflictException when the e-mail is already taken', async () => {
@@ -24,7 +30,7 @@ describe('RegisterUserUseCase', () => {
     expect(userRepository.create).not.toHaveBeenCalled();
   });
 
-  it('hashes the password and creates the user when the e-mail is free', async () => {
+  it('hashes the password, creates the user, and accepts pending invites for that e-mail', async () => {
     userRepository.findByEmail.mockResolvedValue(null);
     passwordHasher.hash.mockResolvedValue('hashed-password');
     const created = new User('1', 'Ana', 'ana@example.com', 'hashed-password', new Date());
@@ -42,6 +48,7 @@ describe('RegisterUserUseCase', () => {
       email: 'ana@example.com',
       passwordHash: 'hashed-password',
     });
+    expect(pendingInviteAcceptor.acceptPendingInvites).toHaveBeenCalledWith('1', 'ana@example.com');
     expect(result).toBe(created);
   });
 });

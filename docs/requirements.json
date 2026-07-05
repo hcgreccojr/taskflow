@@ -1,7 +1,7 @@
 {
   "project": "TaskFlow",
   "description": "Sistema de gestão de tarefas colaborativo (estilo Trello/Jira simplificado)",
-  "version": "1.5",
+  "version": "1.6",
   "document_type": "requirements",
   "changelog": [
     {
@@ -46,174 +46,929 @@
         "Adicionados RF-017 (Excluir coluna) e o endpoint DELETE /columns/:id. RN-004 já descrevia o comportamento completo (mover tarefas para a primeira coluna restante, ou bloquear a exclusão se for a única), mas nunca teve um RF ou endpoint dedicado — nenhuma fase anterior implementou exclusão de coluna.",
         "Adicionado o endpoint GET /health ao array api_endpoints. Ele existe desde a Fase 1 e já era citado em texto livre no RNF-009, mas nunca havia sido listado formalmente entre os endpoints da API."
       ]
+    },
+    {
+      "version": "1.6",
+      "date": "2026-07-05",
+      "changes": [
+        "RNFs pendentes fechados: RNF-003 (p95 medido de fato com script de carga contra GET /boards e GET /tasks); RNF-007 (breakpoints responsivos aplicados e verificados a 360px em login, dashboard, board, modal de tarefa e membros); RNF-009 (logs estruturados via nestjs-pino, com redação de dados sensíveis).",
+        "Hardening de segurança (sem RF/RNF dedicado, mas necessário para qualquer deploy real): CORS restrito por env var (antes aberto), helmet, e rate limiting (@nestjs/throttler) global e reforçado em /auth/login e /auth/register.",
+        "GET /tasks agora é paginado: aceita page/limit (default 1/50, máx. 100) e retorna {data, meta} em vez de um array puro — mudança de forma de resposta. GET /tasks?status=<columnId> (usado pelo board Kanban) usa limit=100 para preservar o comportamento anterior de 'todas as tarefas da coluna'.",
+        "RF-005 (Convidar membro): convite para e-mail sem conta deixa de retornar 422 — cria um PendingInvite que vira Membership automaticamente no cadastro (RN-002). Resposta de POST /organizations/:id/invites muda de Membership para {status:'joined'|'pending', ...}. Novo model de dados PendingInvite.",
+        "Nova capacidade: notificações em tempo real via WebSocket (namespace /realtime) para tarefas e colunas de um quadro — o Documento do Projeto listava isso como 'fora do escopo v1'; passa a ser parte do escopo implementado a partir desta versão."
+      ]
     }
   ],
   "functional_requirements": [
-    { "id": "RF-001", "name": "Cadastro de usuário", "priority": "high", "description": "O sistema deve permitir criar conta com nome, e-mail e senha.", "acceptance_criteria": ["E-mail deve ser único", "Senha deve ter no mínimo 8 caracteres", "Senha deve ser armazenada com hash"] },
-    { "id": "RF-002", "name": "Autenticação", "priority": "high", "description": "O sistema deve permitir login via e-mail/senha.", "acceptance_criteria": ["Retorna access token (JWT) e refresh token", "Credenciais inválidas retornam 401"] },
-    { "id": "RF-003", "name": "Renovação de sessão", "priority": "medium", "description": "Permitir renovar o access token usando um refresh token válido.", "acceptance_criteria": ["Refresh token expirado retorna erro e exige novo login"] },
-    { "id": "RF-004", "name": "Criar organização", "priority": "high", "description": "Usuário autenticado pode criar uma organização.", "acceptance_criteria": ["Criador torna-se automaticamente ADMIN da organização"] },
-    { "id": "RF-005", "name": "Convidar membros", "priority": "medium", "description": "Administrador pode convidar outros usuários para a organização por e-mail.", "acceptance_criteria": ["Apenas ADMIN pode convidar", "Convite associa role MEMBER por padrão"] },
-    { "id": "RF-006", "name": "Criar quadro", "priority": "high", "description": "Membro da organização pode criar um quadro (board) com nome e descrição.", "acceptance_criteria": ["Quadro pertence a exatamente uma organização"] },
-    { "id": "RF-007", "name": "Criar coluna", "priority": "high", "description": "Membro pode criar colunas customizadas dentro de um quadro.", "acceptance_criteria": ["Coluna possui campo 'order' para posicionamento"] },
-    { "id": "RF-008", "name": "Reordenar colunas", "priority": "low", "description": "Membro pode reordenar colunas dentro de um quadro.", "acceptance_criteria": ["Reordenação persiste o novo campo 'order' de todas as colunas afetadas"] },
-    { "id": "RF-009", "name": "Criar tarefa", "priority": "high", "description": "Membro pode criar uma tarefa em uma coluna.", "acceptance_criteria": ["Campos: título (obrigatório), descrição, prazo e responsável (opcionais)", "Responsável deve ser membro da organização"] },
-    { "id": "RF-010", "name": "Editar tarefa", "priority": "high", "description": "Membro pode editar título, descrição, prazo e responsável de uma tarefa existente.", "acceptance_criteria": ["Alterações geram registro no histórico de atividades"] },
-    { "id": "RF-011", "name": "Mover tarefa", "priority": "high", "description": "Membro pode mover uma tarefa entre colunas do mesmo quadro.", "acceptance_criteria": ["Não é permitido mover tarefa para coluna de outro quadro"] },
-    { "id": "RF-012", "name": "Excluir tarefa", "priority": "medium", "description": "Membro pode excluir uma tarefa.", "acceptance_criteria": ["Exige confirmação prévia no frontend", "Exclusão é definitiva (hard delete) ou lógica, a definir na implementação"] },
-    { "id": "RF-013", "name": "Comentar em tarefa", "priority": "medium", "description": "Membro pode adicionar comentários em uma tarefa.", "acceptance_criteria": ["Comentário associado ao autor e timestamp"] },
-    { "id": "RF-014", "name": "Histórico de atividades", "priority": "low", "description": "Sistema registra e exibe histórico de alterações relevantes de uma tarefa.", "acceptance_criteria": ["Eventos: criação, mudança de status, atribuição, edição de campos principais"] },
-    { "id": "RF-015", "name": "Filtrar e buscar tarefas", "priority": "medium", "description": "Membro pode filtrar tarefas por responsável, status e prazo, e buscar por título.", "acceptance_criteria": ["Filtros combináveis via query params na API"] },
-    { "id": "RF-016", "name": "Remover membro", "priority": "medium", "description": "Administrador pode remover um membro da organização.", "acceptance_criteria": ["Apenas ADMIN pode remover (RN-002)", "Membro removido perde acesso aos quadros da organização"] },
-    { "id": "RF-017", "name": "Excluir coluna", "priority": "medium", "description": "Membro pode excluir uma coluna de um quadro.", "acceptance_criteria": ["Tarefas da coluna excluída são movidas para a primeira coluna restante do quadro (RN-004)", "Exclusão é bloqueada se for a única coluna do quadro"] }
+    {
+      "id": "RF-001",
+      "name": "Cadastro de usuário",
+      "priority": "high",
+      "description": "O sistema deve permitir criar conta com nome, e-mail e senha.",
+      "acceptance_criteria": [
+        "E-mail deve ser único",
+        "Senha deve ter no mínimo 8 caracteres",
+        "Senha deve ser armazenada com hash"
+      ]
+    },
+    {
+      "id": "RF-002",
+      "name": "Autenticação",
+      "priority": "high",
+      "description": "O sistema deve permitir login via e-mail/senha.",
+      "acceptance_criteria": [
+        "Retorna access token (JWT) e refresh token",
+        "Credenciais inválidas retornam 401"
+      ]
+    },
+    {
+      "id": "RF-003",
+      "name": "Renovação de sessão",
+      "priority": "medium",
+      "description": "Permitir renovar o access token usando um refresh token válido.",
+      "acceptance_criteria": [
+        "Refresh token expirado retorna erro e exige novo login"
+      ]
+    },
+    {
+      "id": "RF-004",
+      "name": "Criar organização",
+      "priority": "high",
+      "description": "Usuário autenticado pode criar uma organização.",
+      "acceptance_criteria": [
+        "Criador torna-se automaticamente ADMIN da organização"
+      ]
+    },
+    {
+      "id": "RF-005",
+      "name": "Convidar membros",
+      "priority": "medium",
+      "description": "Administrador pode convidar outros usuários para a organização por e-mail.",
+      "acceptance_criteria": [
+        "Apenas ADMIN pode convidar",
+        "Convite associa role MEMBER por padrão",
+        "Se o e-mail ainda não tiver conta, cria um convite pendente que vira membro automaticamente no cadastro (sem envio real de e-mail)"
+      ]
+    },
+    {
+      "id": "RF-006",
+      "name": "Criar quadro",
+      "priority": "high",
+      "description": "Membro da organização pode criar um quadro (board) com nome e descrição.",
+      "acceptance_criteria": [
+        "Quadro pertence a exatamente uma organização"
+      ]
+    },
+    {
+      "id": "RF-007",
+      "name": "Criar coluna",
+      "priority": "high",
+      "description": "Membro pode criar colunas customizadas dentro de um quadro.",
+      "acceptance_criteria": [
+        "Coluna possui campo 'order' para posicionamento"
+      ]
+    },
+    {
+      "id": "RF-008",
+      "name": "Reordenar colunas",
+      "priority": "low",
+      "description": "Membro pode reordenar colunas dentro de um quadro.",
+      "acceptance_criteria": [
+        "Reordenação persiste o novo campo 'order' de todas as colunas afetadas"
+      ]
+    },
+    {
+      "id": "RF-009",
+      "name": "Criar tarefa",
+      "priority": "high",
+      "description": "Membro pode criar uma tarefa em uma coluna.",
+      "acceptance_criteria": [
+        "Campos: título (obrigatório), descrição, prazo e responsável (opcionais)",
+        "Responsável deve ser membro da organização"
+      ]
+    },
+    {
+      "id": "RF-010",
+      "name": "Editar tarefa",
+      "priority": "high",
+      "description": "Membro pode editar título, descrição, prazo e responsável de uma tarefa existente.",
+      "acceptance_criteria": [
+        "Alterações geram registro no histórico de atividades"
+      ]
+    },
+    {
+      "id": "RF-011",
+      "name": "Mover tarefa",
+      "priority": "high",
+      "description": "Membro pode mover uma tarefa entre colunas do mesmo quadro.",
+      "acceptance_criteria": [
+        "Não é permitido mover tarefa para coluna de outro quadro"
+      ]
+    },
+    {
+      "id": "RF-012",
+      "name": "Excluir tarefa",
+      "priority": "medium",
+      "description": "Membro pode excluir uma tarefa.",
+      "acceptance_criteria": [
+        "Exige confirmação prévia no frontend",
+        "Exclusão é definitiva (hard delete) ou lógica, a definir na implementação"
+      ]
+    },
+    {
+      "id": "RF-013",
+      "name": "Comentar em tarefa",
+      "priority": "medium",
+      "description": "Membro pode adicionar comentários em uma tarefa.",
+      "acceptance_criteria": [
+        "Comentário associado ao autor e timestamp"
+      ]
+    },
+    {
+      "id": "RF-014",
+      "name": "Histórico de atividades",
+      "priority": "low",
+      "description": "Sistema registra e exibe histórico de alterações relevantes de uma tarefa.",
+      "acceptance_criteria": [
+        "Eventos: criação, mudança de status, atribuição, edição de campos principais"
+      ]
+    },
+    {
+      "id": "RF-015",
+      "name": "Filtrar e buscar tarefas",
+      "priority": "medium",
+      "description": "Membro pode filtrar tarefas por responsável, status e prazo, e buscar por título.",
+      "acceptance_criteria": [
+        "Filtros combináveis via query params na API"
+      ]
+    },
+    {
+      "id": "RF-016",
+      "name": "Remover membro",
+      "priority": "medium",
+      "description": "Administrador pode remover um membro da organização.",
+      "acceptance_criteria": [
+        "Apenas ADMIN pode remover (RN-002)",
+        "Membro removido perde acesso aos quadros da organização"
+      ]
+    },
+    {
+      "id": "RF-017",
+      "name": "Excluir coluna",
+      "priority": "medium",
+      "description": "Membro pode excluir uma coluna de um quadro.",
+      "acceptance_criteria": [
+        "Tarefas da coluna excluída são movidas para a primeira coluna restante do quadro (RN-004)",
+        "Exclusão é bloqueada se for a única coluna do quadro"
+      ]
+    }
   ],
   "non_functional_requirements": [
-    { "id": "RNF-001", "category": "security", "description": "Senhas devem ser armazenadas com hash (bcrypt/argon2); nunca em texto plano." },
-    { "id": "RNF-002", "category": "security", "description": "Todas as rotas da API, exceto login/cadastro, devem exigir autenticação via JWT." },
-    { "id": "RNF-003", "category": "performance", "description": "Endpoints de listagem devem responder em até 300ms sob carga normal (p95)." },
-    { "id": "RNF-004", "category": "scalability", "description": "Arquitetura deve permitir escalar o backend horizontalmente (stateless, sem sessão em memória)." },
-    { "id": "RNF-005", "category": "availability", "description": "Ambiente de produção deve ter meta de disponibilidade de 99% mensal." },
-    { "id": "RNF-006", "category": "maintainability", "description": "Código deve seguir princípios SOLID e ter cobertura de testes automatizados >= 80% nas camadas de domínio e aplicação." },
-    { "id": "RNF-007", "category": "usability", "description": "Interface deve ser responsiva, funcionando corretamente em telas a partir de 360px de largura." },
-    { "id": "RNF-008", "category": "portability", "description": "Aplicação deve ser executável via Docker/docker-compose em qualquer ambiente compatível." },
-    { "id": "RNF-009", "category": "observability", "description": "API deve expor logs estruturados e um endpoint de health-check (/health)." },
-    { "id": "RNF-010", "category": "documentation", "description": "API deve ser documentada via Swagger/OpenAPI, disponível em ambiente de desenvolvimento." }
+    {
+      "id": "RNF-001",
+      "category": "security",
+      "description": "Senhas devem ser armazenadas com hash (bcrypt/argon2); nunca em texto plano."
+    },
+    {
+      "id": "RNF-002",
+      "category": "security",
+      "description": "Todas as rotas da API, exceto login/cadastro, devem exigir autenticação via JWT."
+    },
+    {
+      "id": "RNF-003",
+      "category": "performance",
+      "description": "Endpoints de listagem devem responder em até 300ms sob carga normal (p95)."
+    },
+    {
+      "id": "RNF-004",
+      "category": "scalability",
+      "description": "Arquitetura deve permitir escalar o backend horizontalmente (stateless, sem sessão em memória)."
+    },
+    {
+      "id": "RNF-005",
+      "category": "availability",
+      "description": "Ambiente de produção deve ter meta de disponibilidade de 99% mensal."
+    },
+    {
+      "id": "RNF-006",
+      "category": "maintainability",
+      "description": "Código deve seguir princípios SOLID e ter cobertura de testes automatizados >= 80% nas camadas de domínio e aplicação."
+    },
+    {
+      "id": "RNF-007",
+      "category": "usability",
+      "description": "Interface deve ser responsiva, funcionando corretamente em telas a partir de 360px de largura."
+    },
+    {
+      "id": "RNF-008",
+      "category": "portability",
+      "description": "Aplicação deve ser executável via Docker/docker-compose em qualquer ambiente compatível."
+    },
+    {
+      "id": "RNF-009",
+      "category": "observability",
+      "description": "API deve expor logs estruturados e um endpoint de health-check (/health)."
+    },
+    {
+      "id": "RNF-010",
+      "category": "documentation",
+      "description": "API deve ser documentada via Swagger/OpenAPI, disponível em ambiente de desenvolvimento."
+    }
   ],
   "business_rules": [
-    { "id": "RN-001", "rule": "Um usuário só pode acessar quadros de organizações das quais é membro." },
-    { "id": "RN-002", "rule": "Apenas administradores da organização podem convidar ou remover membros." },
-    { "id": "RN-003", "rule": "Uma tarefa deve sempre pertencer a exatamente uma coluna e um quadro." },
-    { "id": "RN-004", "rule": "Ao excluir uma coluna, todas as tarefas nela contidas devem ser movidas para a primeira coluna do quadro, ou a exclusão deve ser bloqueada se não houver destino definido." },
-    { "id": "RN-005", "rule": "O responsável por uma tarefa deve ser obrigatoriamente um membro da organização do quadro." },
-    { "id": "RN-006", "rule": "Comentários não podem ser editados após 15 minutos de sua criação; apenas exclusão é permitida após esse período." }
+    {
+      "id": "RN-001",
+      "rule": "Um usuário só pode acessar quadros de organizações das quais é membro."
+    },
+    {
+      "id": "RN-002",
+      "rule": "Apenas administradores da organização podem convidar ou remover membros."
+    },
+    {
+      "id": "RN-003",
+      "rule": "Uma tarefa deve sempre pertencer a exatamente uma coluna e um quadro."
+    },
+    {
+      "id": "RN-004",
+      "rule": "Ao excluir uma coluna, todas as tarefas nela contidas devem ser movidas para a primeira coluna do quadro, ou a exclusão deve ser bloqueada se não houver destino definido."
+    },
+    {
+      "id": "RN-005",
+      "rule": "O responsável por uma tarefa deve ser obrigatoriamente um membro da organização do quadro."
+    },
+    {
+      "id": "RN-006",
+      "rule": "Comentários não podem ser editados após 15 minutos de sua criação; apenas exclusão é permitida após esse período."
+    }
   ],
   "user_stories": [
-    { "id": "US-01", "as_a": "usuário", "i_want": "me cadastrar com e-mail e senha", "so_that": "acessar a plataforma", "related_requirements": ["RF-001"] },
-    { "id": "US-02", "as_a": "usuário", "i_want": "fazer login", "so_that": "acessar meus quadros e tarefas", "related_requirements": ["RF-002"] },
-    { "id": "US-03", "as_a": "administrador", "i_want": "criar uma organização", "so_that": "agrupar meus quadros de equipe", "related_requirements": ["RF-004"] },
-    { "id": "US-04", "as_a": "membro", "i_want": "criar um quadro com colunas customizadas", "so_that": "organizar o fluxo de trabalho da minha equipe", "related_requirements": ["RF-006", "RF-007"] },
-    { "id": "US-05", "as_a": "membro", "i_want": "criar tarefas e atribuí-las a colegas", "so_that": "distribuir o trabalho", "related_requirements": ["RF-009"] },
-    { "id": "US-06", "as_a": "membro", "i_want": "mover tarefas entre colunas", "so_that": "refletir o progresso do trabalho", "related_requirements": ["RF-011"] },
-    { "id": "US-07", "as_a": "membro", "i_want": "comentar em uma tarefa", "so_that": "alinhar detalhes com a equipe", "related_requirements": ["RF-013"] },
-    { "id": "US-08", "as_a": "membro", "i_want": "filtrar tarefas por responsável e prazo", "so_that": "priorizar meu trabalho", "related_requirements": ["RF-015"] }
+    {
+      "id": "US-01",
+      "as_a": "usuário",
+      "i_want": "me cadastrar com e-mail e senha",
+      "so_that": "acessar a plataforma",
+      "related_requirements": [
+        "RF-001"
+      ]
+    },
+    {
+      "id": "US-02",
+      "as_a": "usuário",
+      "i_want": "fazer login",
+      "so_that": "acessar meus quadros e tarefas",
+      "related_requirements": [
+        "RF-002"
+      ]
+    },
+    {
+      "id": "US-03",
+      "as_a": "administrador",
+      "i_want": "criar uma organização",
+      "so_that": "agrupar meus quadros de equipe",
+      "related_requirements": [
+        "RF-004"
+      ]
+    },
+    {
+      "id": "US-04",
+      "as_a": "membro",
+      "i_want": "criar um quadro com colunas customizadas",
+      "so_that": "organizar o fluxo de trabalho da minha equipe",
+      "related_requirements": [
+        "RF-006",
+        "RF-007"
+      ]
+    },
+    {
+      "id": "US-05",
+      "as_a": "membro",
+      "i_want": "criar tarefas e atribuí-las a colegas",
+      "so_that": "distribuir o trabalho",
+      "related_requirements": [
+        "RF-009"
+      ]
+    },
+    {
+      "id": "US-06",
+      "as_a": "membro",
+      "i_want": "mover tarefas entre colunas",
+      "so_that": "refletir o progresso do trabalho",
+      "related_requirements": [
+        "RF-011"
+      ]
+    },
+    {
+      "id": "US-07",
+      "as_a": "membro",
+      "i_want": "comentar em uma tarefa",
+      "so_that": "alinhar detalhes com a equipe",
+      "related_requirements": [
+        "RF-013"
+      ]
+    },
+    {
+      "id": "US-08",
+      "as_a": "membro",
+      "i_want": "filtrar tarefas por responsável e prazo",
+      "so_that": "priorizar meu trabalho",
+      "related_requirements": [
+        "RF-015"
+      ]
+    }
   ],
   "data_model": {
     "entities": [
       {
         "name": "User",
         "fields": [
-          { "name": "id", "type": "uuid", "constraints": ["PK"] },
-          { "name": "name", "type": "string", "constraints": ["required"] },
-          { "name": "email", "type": "string", "constraints": ["required", "unique"] },
-          { "name": "passwordHash", "type": "string", "constraints": ["required"] },
-          { "name": "createdAt", "type": "datetime", "constraints": ["auto"] }
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "constraints": [
+              "required",
+              "unique"
+            ]
+          },
+          {
+            "name": "passwordHash",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "createdAt",
+            "type": "datetime",
+            "constraints": [
+              "auto"
+            ]
+          }
         ]
       },
       {
         "name": "Organization",
         "fields": [
-          { "name": "id", "type": "uuid", "constraints": ["PK"] },
-          { "name": "name", "type": "string", "constraints": ["required"] },
-          { "name": "ownerId", "type": "uuid", "constraints": ["FK:User"] },
-          { "name": "createdAt", "type": "datetime", "constraints": ["auto"] }
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "ownerId",
+            "type": "uuid",
+            "constraints": [
+              "FK:User"
+            ]
+          },
+          {
+            "name": "createdAt",
+            "type": "datetime",
+            "constraints": [
+              "auto"
+            ]
+          }
         ]
       },
       {
         "name": "Membership",
         "fields": [
-          { "name": "id", "type": "uuid", "constraints": ["PK"] },
-          { "name": "userId", "type": "uuid", "constraints": ["FK:User"] },
-          { "name": "organizationId", "type": "uuid", "constraints": ["FK:Organization"] },
-          { "name": "role", "type": "enum", "values": ["ADMIN", "MEMBER"], "constraints": ["required"] }
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "userId",
+            "type": "uuid",
+            "constraints": [
+              "FK:User"
+            ]
+          },
+          {
+            "name": "organizationId",
+            "type": "uuid",
+            "constraints": [
+              "FK:Organization"
+            ]
+          },
+          {
+            "name": "role",
+            "type": "enum",
+            "values": [
+              "ADMIN",
+              "MEMBER"
+            ],
+            "constraints": [
+              "required"
+            ]
+          }
         ]
       },
       {
         "name": "Board",
         "fields": [
-          { "name": "id", "type": "uuid", "constraints": ["PK"] },
-          { "name": "organizationId", "type": "uuid", "constraints": ["FK:Organization"] },
-          { "name": "name", "type": "string", "constraints": ["required"] },
-          { "name": "description", "type": "string", "constraints": ["optional"] }
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "organizationId",
+            "type": "uuid",
+            "constraints": [
+              "FK:Organization"
+            ]
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "constraints": [
+              "optional"
+            ]
+          }
         ]
       },
       {
         "name": "Column",
         "fields": [
-          { "name": "id", "type": "uuid", "constraints": ["PK"] },
-          { "name": "boardId", "type": "uuid", "constraints": ["FK:Board"] },
-          { "name": "name", "type": "string", "constraints": ["required"] },
-          { "name": "order", "type": "integer", "constraints": ["required"] }
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "boardId",
+            "type": "uuid",
+            "constraints": [
+              "FK:Board"
+            ]
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "order",
+            "type": "integer",
+            "constraints": [
+              "required"
+            ]
+          }
         ]
       },
       {
         "name": "Task",
         "fields": [
-          { "name": "id", "type": "uuid", "constraints": ["PK"] },
-          { "name": "columnId", "type": "uuid", "constraints": ["FK:Column"] },
-          { "name": "title", "type": "string", "constraints": ["required"] },
-          { "name": "description", "type": "string", "constraints": ["optional"] },
-          { "name": "assigneeId", "type": "uuid", "constraints": ["FK:User", "optional"] },
-          { "name": "dueDate", "type": "date", "constraints": ["optional"] },
-          { "name": "order", "type": "integer", "constraints": ["required"] },
-          { "name": "priority", "type": "enum", "values": ["LOW", "MEDIUM", "HIGH"], "constraints": ["required", "default:MEDIUM"] },
-          { "name": "createdAt", "type": "datetime", "constraints": ["auto"] }
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "columnId",
+            "type": "uuid",
+            "constraints": [
+              "FK:Column"
+            ]
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "constraints": [
+              "optional"
+            ]
+          },
+          {
+            "name": "assigneeId",
+            "type": "uuid",
+            "constraints": [
+              "FK:User",
+              "optional"
+            ]
+          },
+          {
+            "name": "dueDate",
+            "type": "date",
+            "constraints": [
+              "optional"
+            ]
+          },
+          {
+            "name": "order",
+            "type": "integer",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "priority",
+            "type": "enum",
+            "values": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ],
+            "constraints": [
+              "required",
+              "default:MEDIUM"
+            ]
+          },
+          {
+            "name": "createdAt",
+            "type": "datetime",
+            "constraints": [
+              "auto"
+            ]
+          }
         ]
       },
       {
         "name": "Comment",
         "fields": [
-          { "name": "id", "type": "uuid", "constraints": ["PK"] },
-          { "name": "taskId", "type": "uuid", "constraints": ["FK:Task"] },
-          { "name": "authorId", "type": "uuid", "constraints": ["FK:User"] },
-          { "name": "content", "type": "string", "constraints": ["required"] },
-          { "name": "createdAt", "type": "datetime", "constraints": ["auto"] }
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "taskId",
+            "type": "uuid",
+            "constraints": [
+              "FK:Task"
+            ]
+          },
+          {
+            "name": "authorId",
+            "type": "uuid",
+            "constraints": [
+              "FK:User"
+            ]
+          },
+          {
+            "name": "content",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "createdAt",
+            "type": "datetime",
+            "constraints": [
+              "auto"
+            ]
+          }
         ]
       },
       {
         "name": "ActivityLog",
         "fields": [
-          { "name": "id", "type": "uuid", "constraints": ["PK"] },
-          { "name": "taskId", "type": "uuid", "constraints": ["FK:Task"] },
-          { "name": "userId", "type": "uuid", "constraints": ["FK:User", "required"] },
-          { "name": "action", "type": "string", "constraints": ["required"] },
-          { "name": "createdAt", "type": "datetime", "constraints": ["auto"] }
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "taskId",
+            "type": "uuid",
+            "constraints": [
+              "FK:Task"
+            ]
+          },
+          {
+            "name": "userId",
+            "type": "uuid",
+            "constraints": [
+              "FK:User",
+              "required"
+            ]
+          },
+          {
+            "name": "action",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "createdAt",
+            "type": "datetime",
+            "constraints": [
+              "auto"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "PendingInvite",
+        "fields": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "constraints": [
+              "PK"
+            ]
+          },
+          {
+            "name": "organizationId",
+            "type": "uuid",
+            "constraints": [
+              "FK:Organization"
+            ]
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "role",
+            "type": "enum",
+            "values": [
+              "ADMIN",
+              "MEMBER"
+            ],
+            "constraints": [
+              "required"
+            ]
+          },
+          {
+            "name": "createdAt",
+            "type": "datetime",
+            "constraints": [
+              "auto"
+            ]
+          }
         ]
       }
     ]
   },
   "api_endpoints": [
-    { "method": "GET", "path": "/health", "description": "Health-check da API (RNF-009)", "auth_required": false },
-    { "method": "POST", "path": "/auth/register", "description": "Cadastrar novo usuário", "auth_required": false },
-    { "method": "POST", "path": "/auth/login", "description": "Autenticar usuário", "auth_required": false },
-    { "method": "POST", "path": "/auth/refresh", "description": "Renovar access token", "auth_required": "refresh_token" },
-    { "method": "GET", "path": "/users/me", "description": "Consultar perfil do usuário autenticado", "auth_required": true },
-    { "method": "GET", "path": "/organizations", "description": "Listar organizações do usuário", "auth_required": true },
-    { "method": "POST", "path": "/organizations", "description": "Criar organização", "auth_required": true },
-    { "method": "POST", "path": "/organizations/:id/invites", "description": "Convidar membro", "auth_required": "admin" },
-    { "method": "GET", "path": "/organizations/:id/members", "description": "Listar membros de uma organização", "auth_required": true },
-    { "method": "DELETE", "path": "/organizations/:id/members/:memberId", "description": "Remover membro da organização", "auth_required": "admin" },
-    { "method": "GET", "path": "/boards", "description": "Listar quadros de uma organização", "query_params": ["organizationId"], "auth_required": true },
-    { "method": "POST", "path": "/boards", "description": "Criar quadro", "auth_required": true },
-    { "method": "GET", "path": "/boards/:id/columns", "description": "Listar colunas de um quadro", "auth_required": true },
-    { "method": "POST", "path": "/boards/:id/columns", "description": "Criar coluna", "auth_required": true },
-    { "method": "PATCH", "path": "/columns/:id/reorder", "description": "Reordenar coluna", "auth_required": true },
-    { "method": "DELETE", "path": "/columns/:id", "description": "Excluir coluna (tarefas movidas para a primeira coluna restante)", "auth_required": true },
-    { "method": "POST", "path": "/columns/:id/tasks", "description": "Criar tarefa", "auth_required": true },
-    { "method": "PATCH", "path": "/tasks/:id", "description": "Editar tarefa", "auth_required": true },
-    { "method": "PATCH", "path": "/tasks/:id/move", "description": "Mover tarefa entre colunas", "auth_required": true },
-    { "method": "DELETE", "path": "/tasks/:id", "description": "Excluir tarefa", "auth_required": true },
-    { "method": "POST", "path": "/tasks/:id/comments", "description": "Comentar em tarefa", "auth_required": true },
-    { "method": "GET", "path": "/tasks/:id/comments", "description": "Listar comentários de uma tarefa", "auth_required": true },
-    { "method": "PATCH", "path": "/comments/:id", "description": "Editar comentário (até 15 minutos após a criação, apenas o autor)", "auth_required": true },
-    { "method": "DELETE", "path": "/comments/:id", "description": "Excluir comentário (apenas o autor)", "auth_required": true },
-    { "method": "GET", "path": "/tasks/:id/activity", "description": "Consultar histórico de atividades", "auth_required": true },
-    { "method": "GET", "path": "/tasks", "description": "Buscar/filtrar tarefas", "query_params": ["assigneeId", "status", "dueBefore", "search"], "auth_required": true }
+    {
+      "method": "GET",
+      "path": "/health",
+      "description": "Health-check da API (RNF-009)",
+      "auth_required": false
+    },
+    {
+      "method": "POST",
+      "path": "/auth/register",
+      "description": "Cadastrar novo usuário",
+      "auth_required": false
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "description": "Autenticar usuário",
+      "auth_required": false
+    },
+    {
+      "method": "POST",
+      "path": "/auth/refresh",
+      "description": "Renovar access token",
+      "auth_required": "refresh_token"
+    },
+    {
+      "method": "GET",
+      "path": "/users/me",
+      "description": "Consultar perfil do usuário autenticado",
+      "auth_required": true
+    },
+    {
+      "method": "GET",
+      "path": "/organizations",
+      "description": "Listar organizações do usuário",
+      "auth_required": true
+    },
+    {
+      "method": "POST",
+      "path": "/organizations",
+      "description": "Criar organização",
+      "auth_required": true
+    },
+    {
+      "method": "POST",
+      "path": "/organizations/:id/invites",
+      "description": "Convidar membro (retorna {status:'joined', membership} ou {status:'pending', invite} se o e-mail ainda não tiver conta)",
+      "auth_required": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/organizations/:id/members",
+      "description": "Listar membros de uma organização",
+      "auth_required": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/organizations/:id/members/:memberId",
+      "description": "Remover membro da organização",
+      "auth_required": "admin"
+    },
+    {
+      "method": "GET",
+      "path": "/boards",
+      "description": "Listar quadros de uma organização",
+      "query_params": [
+        "organizationId"
+      ],
+      "auth_required": true
+    },
+    {
+      "method": "POST",
+      "path": "/boards",
+      "description": "Criar quadro",
+      "auth_required": true
+    },
+    {
+      "method": "GET",
+      "path": "/boards/:id/columns",
+      "description": "Listar colunas de um quadro",
+      "auth_required": true
+    },
+    {
+      "method": "POST",
+      "path": "/boards/:id/columns",
+      "description": "Criar coluna",
+      "auth_required": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/columns/:id/reorder",
+      "description": "Reordenar coluna",
+      "auth_required": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/columns/:id",
+      "description": "Excluir coluna (tarefas movidas para a primeira coluna restante)",
+      "auth_required": true
+    },
+    {
+      "method": "POST",
+      "path": "/columns/:id/tasks",
+      "description": "Criar tarefa",
+      "auth_required": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/tasks/:id",
+      "description": "Editar tarefa",
+      "auth_required": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/tasks/:id/move",
+      "description": "Mover tarefa entre colunas",
+      "auth_required": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/tasks/:id",
+      "description": "Excluir tarefa",
+      "auth_required": true
+    },
+    {
+      "method": "POST",
+      "path": "/tasks/:id/comments",
+      "description": "Comentar em tarefa",
+      "auth_required": true
+    },
+    {
+      "method": "GET",
+      "path": "/tasks/:id/comments",
+      "description": "Listar comentários de uma tarefa",
+      "auth_required": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/comments/:id",
+      "description": "Editar comentário (até 15 minutos após a criação, apenas o autor)",
+      "auth_required": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/comments/:id",
+      "description": "Excluir comentário (apenas o autor)",
+      "auth_required": true
+    },
+    {
+      "method": "GET",
+      "path": "/tasks/:id/activity",
+      "description": "Consultar histórico de atividades",
+      "auth_required": true
+    },
+    {
+      "method": "GET",
+      "path": "/tasks",
+      "description": "Buscar/filtrar tarefas (paginado: retorna {data, meta})",
+      "query_params": [
+        "assigneeId",
+        "status",
+        "dueBefore",
+        "search",
+        "page",
+        "limit"
+      ],
+      "auth_required": true
+    }
   ],
   "glossary": [
-    { "term": "Board", "definition": "Espaço de trabalho que agrupa colunas e tarefas de um time (quadro)." },
-    { "term": "Column", "definition": "Etapa do fluxo de trabalho dentro de um quadro (ex.: A Fazer)." },
-    { "term": "Task", "definition": "Unidade de trabalho atribuível a um responsável, com prazo e status (tarefa)." },
-    { "term": "Membership", "definition": "Vínculo entre um usuário e uma organização, com papel (role) associado." },
-    { "term": "JWT", "definition": "JSON Web Token, padrão usado para autenticação stateless da API." }
-  ]
+    {
+      "term": "Board",
+      "definition": "Espaço de trabalho que agrupa colunas e tarefas de um time (quadro)."
+    },
+    {
+      "term": "Column",
+      "definition": "Etapa do fluxo de trabalho dentro de um quadro (ex.: A Fazer)."
+    },
+    {
+      "term": "Task",
+      "definition": "Unidade de trabalho atribuível a um responsável, com prazo e status (tarefa)."
+    },
+    {
+      "term": "Membership",
+      "definition": "Vínculo entre um usuário e uma organização, com papel (role) associado."
+    },
+    {
+      "term": "JWT",
+      "definition": "JSON Web Token, padrão usado para autenticação stateless da API."
+    }
+  ],
+  "realtime": {
+    "namespace": "/realtime",
+    "auth": "JWT access token via handshake.auth.token (mesmo token do REST)",
+    "client_events": [
+      {
+        "name": "join-board",
+        "payload": "{ boardId }",
+        "description": "Entra na room do quadro; valida membership do requester na organização do quadro."
+      },
+      {
+        "name": "leave-board",
+        "payload": "{ boardId }",
+        "description": "Sai da room do quadro."
+      }
+    ],
+    "server_events": [
+      {
+        "name": "board-event",
+        "payload": "{ type, payload }",
+        "description": "Emitido para todos na room do quadro. type é um de: task.created, task.updated, task.moved, task.deleted, column.created, column.deleted, column.reordered."
+      }
+    ]
+  }
 }

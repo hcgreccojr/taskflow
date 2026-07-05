@@ -73,3 +73,18 @@
   width: 100%;
   max-width: 376px;
 }
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 28px 24px;
+  }
+
+  .headline {
+    font-size: 28px;
+    margin-bottom: 16px;
+  }
+
+  .formSide {
+    padding: 24px 16px;
+  }
+}

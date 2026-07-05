@@ -13,6 +13,7 @@ describe('UpdateTaskUseCase', () => {
   let membershipRepository: { findByUserAndOrganization: jest.Mock };
   let activityLogRecorder: { recordFieldsUpdated: jest.Mock; recordAssigned: jest.Mock };
   let taskAccessService: { resolve: jest.Mock };
+  let realtimeNotifier: { notifyBoardEvent: jest.Mock };
 
   const existingTask = new Task(
     'task-1',
@@ -38,11 +39,13 @@ describe('UpdateTaskUseCase', () => {
     taskAccessService = {
       resolve: jest.fn().mockResolvedValue({ task: existingTask, column, board }),
     };
+    realtimeNotifier = { notifyBoardEvent: jest.fn() };
     useCase = new UpdateTaskUseCase(
       taskRepository as any,
       membershipRepository as any,
       activityLogRecorder as unknown as ActivityLogRecorderService,
       taskAccessService as unknown as TaskAccessService,
+      realtimeNotifier as any,
     );
   });
 
@@ -107,6 +110,10 @@ describe('UpdateTaskUseCase', () => {
       'prioridade',
     ]);
     expect(activityLogRecorder.recordAssigned).toHaveBeenCalledWith('task-1', 'user-1');
+    expect(realtimeNotifier.notifyBoardEvent).toHaveBeenCalledWith('board-1', {
+      type: 'task.updated',
+      payload: updated,
+    });
     expect(result).toBe(updated);
   });
 

@@ -1,6 +1,11 @@
 import { request } from './httpClient';
 import type { ActivityLog, Task, TaskPriority } from '../shared/types/api';
 
+interface PaginatedTasksResponse {
+  data: Task[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
+}
+
 export interface CreateTaskInput {
   title: string;
   description?: string;
@@ -36,17 +41,34 @@ export function deleteTask(taskId: string): Promise<void> {
 /**
  * O nome do query param no backend é "status", mas semanticamente filtra pelo columnId
  * exato (não existe Task.status no modelo de dados — a coluna representa o estágio).
+ *
+ * GET /tasks é paginado (RNF-003); aqui usamos o limite máximo (100) para preservar
+ * o comportamento anterior de "todas as tarefas da coluna" no board Kanban, já que a
+ * reordenação por drag-and-drop depende do conjunto completo.
  */
-export function listTasksByColumn(columnId: string): Promise<Task[]> {
-  return request('/tasks', { query: { status: columnId } });
+export async function listTasksByColumn(columnId: string): Promise<Task[]> {
+  const response = await request<PaginatedTasksResponse>('/tasks', {
+    query: { status: columnId, limit: '100' },
+  });
+  return response.data;
 }
 
-export function listTasks(filters: {
+export async function listTasks(filters: {
   assigneeId?: string;
   dueBefore?: string;
   search?: string;
+  page?: number;
+  limit?: number;
 }): Promise<Task[]> {
-  return request('/tasks', { query: filters });
+  const { page, limit, ...rest } = filters;
+  const response = await request<PaginatedTasksResponse>('/tasks', {
+    query: {
+      ...rest,
+      page: page !== undefined ? String(page) : undefined,
+      limit: limit !== undefined ? String(limit) : undefined,
+    },
+  });
+  return response.data;
 }
 
 export function getTaskActivity(taskId: string): Promise<ActivityLog[]> {

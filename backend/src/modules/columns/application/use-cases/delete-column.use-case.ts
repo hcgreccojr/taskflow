@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { BoardRepository, BOARD_REPOSITORY } from '../../../boards/application/ports/board-repository.port';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
 import { TaskRepository, TASK_REPOSITORY } from '../../../tasks/application/ports/task-repository.port';
+import { RealtimeNotifier, REALTIME_NOTIFIER } from '../../../realtime/application/ports/realtime-notifier.port';
 import { ColumnRepository, COLUMN_REPOSITORY } from '../ports/column-repository.port';
 
 export interface DeleteColumnInput {
@@ -21,6 +22,7 @@ export class DeleteColumnUseCase {
     @Inject(BOARD_REPOSITORY) private readonly boardRepository: BoardRepository,
     @Inject(TASK_REPOSITORY) private readonly taskRepository: TaskRepository,
     private readonly membershipChecker: MembershipCheckerService,
+    @Inject(REALTIME_NOTIFIER) private readonly realtimeNotifier: RealtimeNotifier,
   ) {}
 
   async execute(input: DeleteColumnInput): Promise<void> {
@@ -67,5 +69,10 @@ export class DeleteColumnUseCase {
     await this.columnRepository.updateOrders(
       remaining.map((sibling, index) => ({ id: sibling.id, order: index })),
     );
+
+    this.realtimeNotifier.notifyBoardEvent(board.id, {
+      type: 'column.deleted',
+      payload: { columnId: column.id },
+    });
   }
 }

@@ -32,6 +32,13 @@ export interface TaskFilters {
   columnId?: string;
   dueBefore?: Date;
   search?: string;
+  skip: number;
+  take: number;
+}
+
+export interface PaginatedTasks {
+  data: Task[];
+  total: number;
 }
 
 export interface TaskRepository {
@@ -43,5 +50,5 @@ export interface TaskRepository {
   delete(id: string): Promise<void>;
   /** Persiste `columnId`+`order` de várias tarefas numa única transação. */
   updatePositions(updates: TaskPositionUpdate[]): Promise<void>;
-  findMany(filters: TaskFilters): Promise<Task[]>;
+  findMany(filters: TaskFilters): Promise<PaginatedTasks>;
 }

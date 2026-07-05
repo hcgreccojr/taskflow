@@ -1,5 +1,5 @@
 import { request } from './httpClient';
-import type { Member, Membership, MembershipRole, Organization } from '../shared/types/api';
+import type { InviteResult, Member, MembershipRole, Organization } from '../shared/types/api';
 
 export function listOrganizations(): Promise<Organization[]> {
   return request('/organizations');
@@ -16,7 +16,7 @@ export function listMembers(organizationId: string): Promise<Member[]> {
 export function inviteMember(
   organizationId: string,
   data: { email: string; role?: MembershipRole },
-): Promise<Membership> {
+): Promise<InviteResult> {
   return request(`/organizations/${organizationId}/invites`, { method: 'POST', body: data });
 }
 

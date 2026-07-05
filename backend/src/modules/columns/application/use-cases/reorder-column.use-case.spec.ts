@@ -9,6 +9,7 @@ describe('ReorderColumnUseCase', () => {
   let columnRepository: { findById: jest.Mock; findByBoardId: jest.Mock; updateOrders: jest.Mock };
   let boardRepository: { findById: jest.Mock };
   let membershipChecker: { assertMember: jest.Mock };
+  let realtimeNotifier: { notifyBoardEvent: jest.Mock };
 
   const columns = [
     new Column('col-1', 'board-1', 'A Fazer', 0),
@@ -24,10 +25,12 @@ describe('ReorderColumnUseCase', () => {
     };
     boardRepository = { findById: jest.fn().mockResolvedValue(new Board('board-1', 'org-1', 'Sprint 1', null)) };
     membershipChecker = { assertMember: jest.fn().mockResolvedValue(undefined) };
+    realtimeNotifier = { notifyBoardEvent: jest.fn() };
     useCase = new ReorderColumnUseCase(
       columnRepository as any,
       boardRepository as any,
       membershipChecker as unknown as MembershipCheckerService,
+      realtimeNotifier as any,
     );
   });
 
@@ -59,6 +62,10 @@ describe('ReorderColumnUseCase', () => {
       { id: 'col-2', order: 2 },
     ]);
     expect(result.map((c) => c.id)).toEqual(['col-3', 'col-1', 'col-2']);
+    expect(realtimeNotifier.notifyBoardEvent).toHaveBeenCalledWith('board-1', {
+      type: 'column.reordered',
+      payload: result,
+    });
   });
 
   it('moves the first column to the middle', async () => {

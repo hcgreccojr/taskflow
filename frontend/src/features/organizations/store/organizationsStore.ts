@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as organizationsApi from '../../../services/organizationsApi';
-import type { Member, MembershipRole, Organization } from '../../../shared/types/api';
+import type { InviteResult, Member, MembershipRole, Organization } from '../../../shared/types/api';
 
 interface OrganizationsState {
   organizations: Organization[];
@@ -9,7 +9,7 @@ interface OrganizationsState {
   fetchOrganizations: () => Promise<void>;
   createOrganization: (name: string) => Promise<Organization>;
   fetchMembers: (organizationId: string) => Promise<void>;
-  inviteMember: (organizationId: string, email: string, role?: MembershipRole) => Promise<void>;
+  inviteMember: (organizationId: string, email: string, role?: MembershipRole) => Promise<InviteResult>;
   removeMember: (organizationId: string, membershipId: string) => Promise<void>;
 }
 
@@ -41,8 +41,9 @@ export const useOrganizationsStore = create<OrganizationsState>((set, get) => ({
   },
 
   inviteMember: async (organizationId, email, role) => {
-    await organizationsApi.inviteMember(organizationId, { email, role });
+    const result = await organizationsApi.inviteMember(organizationId, { email, role });
     await get().fetchMembers(organizationId);
+    return result;
   },
 
   removeMember: async (organizationId, membershipId) => {

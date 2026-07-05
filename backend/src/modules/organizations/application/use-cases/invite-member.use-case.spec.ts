@@ -1,7 +1,8 @@
-import { ConflictException, ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { InviteMemberUseCase } from './invite-member.use-case';
 import { MembershipCheckerService } from '../services/membership-checker.service';
 import { Membership, MembershipRole } from '../../domain/membership.entity';
+import { PendingInvite } from '../../domain/pending-invite.entity';
 import { User } from '../../../users/domain/user.entity';
 
 describe('InviteMemberUseCase', () => {
@@ -9,15 +10,18 @@ describe('InviteMemberUseCase', () => {
   let membershipChecker: { assertAdmin: jest.Mock };
   let userRepository: { findByEmail: jest.Mock };
   let membershipRepository: { findByUserAndOrganization: jest.Mock; create: jest.Mock };
+  let pendingInviteRepository: { upsert: jest.Mock };
 
   beforeEach(() => {
     membershipChecker = { assertAdmin: jest.fn() };
     userRepository = { findByEmail: jest.fn() };
     membershipRepository = { findByUserAndOrganization: jest.fn(), create: jest.fn() };
+    pendingInviteRepository = { upsert: jest.fn() };
     useCase = new InviteMemberUseCase(
       membershipChecker as unknown as MembershipCheckerService,
       userRepository as any,
       membershipRepository as any,
+      pendingInviteRepository as any,
     );
   });
 
@@ -30,11 +34,21 @@ describe('InviteMemberUseCase', () => {
     expect(userRepository.findByEmail).not.toHaveBeenCalled();
   });
 
-  it('throws UnprocessableEntityException when no user has that e-mail', async () => {
+  it('creates a pending invite (instead of failing) when no user has that e-mail', async () => {
     membershipChecker.assertAdmin.mockResolvedValue(undefined);
     userRepository.findByEmail.mockResolvedValue(null);
+    const invite = new PendingInvite('inv-1', 'org-1', 'colega@example.com', MembershipRole.MEMBER, new Date());
+    pendingInviteRepository.upsert.mockResolvedValue(invite);
 
-    await expect(useCase.execute(input)).rejects.toBeInstanceOf(UnprocessableEntityException);
+    const result = await useCase.execute(input);
+
+    expect(pendingInviteRepository.upsert).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      email: 'colega@example.com',
+      role: MembershipRole.MEMBER,
+    });
+    expect(result).toEqual({ status: 'pending', invite });
+    expect(membershipRepository.create).not.toHaveBeenCalled();
   });
 
   it('throws ConflictException when the user is already a member', async () => {
@@ -66,6 +80,6 @@ describe('InviteMemberUseCase', () => {
       organizationId: 'org-1',
       role: MembershipRole.MEMBER,
     });
-    expect(result).toBe(created);
+    expect(result).toEqual({ status: 'joined', membership: created });
   });
 });

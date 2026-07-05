@@ -20,6 +20,7 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { ListTasksQueryDto } from './dto/list-tasks-query.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
+import { TaskListResponseDto } from './dto/task-list-response.dto';
 import { ActivityLogResponseDto } from './dto/activity-log-response.dto';
 
 @ApiTags('tasks')
@@ -111,20 +112,24 @@ export class TasksController {
   }
 
   @Get('tasks')
-  @ApiOperation({ summary: 'Buscar/filtrar tarefas por responsável, coluna, prazo e/ou título' })
-  @ApiOkResponse({ type: TaskResponseDto, isArray: true })
+  @ApiOperation({
+    summary: 'Buscar/filtrar tarefas por responsável, coluna, prazo e/ou título (paginado)',
+  })
+  @ApiOkResponse({ type: TaskListResponseDto })
   async list(
     @CurrentUser() user: TokenPayload,
     @Query() query: ListTasksQueryDto,
-  ): Promise<TaskResponseDto[]> {
-    const tasks = await this.listTasksUseCase.execute({
+  ): Promise<TaskListResponseDto> {
+    const result = await this.listTasksUseCase.execute({
       requesterId: user.sub,
       assigneeId: query.assigneeId,
       columnId: query.status,
       dueBefore: query.dueBefore ? new Date(query.dueBefore) : undefined,
       search: query.search,
+      page: query.page,
+      limit: query.limit,
     });
-    return tasks.map(TaskResponseDto.fromDomain);
+    return { data: result.data.map(TaskResponseDto.fromDomain), meta: result.meta };
   }
 
   @Get('tasks/:id/activity')

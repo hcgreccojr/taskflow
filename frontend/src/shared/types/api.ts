@@ -31,6 +31,22 @@ export interface Member {
   email: string;
 }
 
+export interface PendingInvite {
+  id: string;
+  organizationId: string;
+  email: string;
+  role: MembershipRole;
+  createdAt: string;
+}
+
+/**
+ * POST /organizations/:id/invites — "joined" quando o e-mail já tinha conta (virou membro
+ * na hora); "pending" quando não tinha (vira membro automaticamente ao se cadastrar).
+ */
+export type InviteResult =
+  | { status: 'joined'; membership: Membership }
+  | { status: 'pending'; invite: PendingInvite };
+
 export interface Board {
   id: string;
   organizationId: string;

@@ -9,6 +9,7 @@ describe('DeleteTaskUseCase', () => {
   let useCase: DeleteTaskUseCase;
   let taskRepository: { findById: jest.Mock; delete: jest.Mock };
   let taskAccessService: { resolve: jest.Mock };
+  let realtimeNotifier: { notifyBoardEvent: jest.Mock };
 
   const existingTask = new Task(
     'task-1',
@@ -29,9 +30,11 @@ describe('DeleteTaskUseCase', () => {
     taskAccessService = {
       resolve: jest.fn().mockResolvedValue({ task: existingTask, column, board }),
     };
+    realtimeNotifier = { notifyBoardEvent: jest.fn() };
     useCase = new DeleteTaskUseCase(
       taskRepository as any,
       taskAccessService as unknown as TaskAccessService,
+      realtimeNotifier as any,
     );
   });
 
@@ -58,5 +61,9 @@ describe('DeleteTaskUseCase', () => {
 
     expect(taskAccessService.resolve).toHaveBeenCalledWith('task-1', 'user-1');
     expect(taskRepository.delete).toHaveBeenCalledWith('task-1');
+    expect(realtimeNotifier.notifyBoardEvent).toHaveBeenCalledWith('board-1', {
+      type: 'task.deleted',
+      payload: { taskId: 'task-1' },
+    });
   });
 });

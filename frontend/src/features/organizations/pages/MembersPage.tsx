@@ -41,9 +41,13 @@ export function MembersPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await inviteMember(orgId, email.trim(), role);
+      const result = await inviteMember(orgId, email.trim(), role);
       setEmail('');
-      pushToast('Convite enviado');
+      pushToast(
+        result.status === 'joined'
+          ? 'Convite enviado'
+          : 'E-mail ainda não tem conta — será adicionado automaticamente assim que se cadastrar.',
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.messages.join(' ') : 'Não foi possível convidar.');
     } finally {

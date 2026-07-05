@@ -90,3 +90,13 @@
   gap: 8px;
   margin-top: 8px;
 }
+
+@media (max-width: 480px) {
+  .body {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+  }
+}

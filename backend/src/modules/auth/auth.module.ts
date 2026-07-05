@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { UsersModule } from '../users/users.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 import { AuthController } from './presentation/auth.controller';
 import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
 import { LoginUseCase } from './application/use-cases/login.use-case';
@@ -16,6 +17,7 @@ import { JwtAuthGuard } from './infrastructure/guards/jwt-auth.guard';
 @Module({
   imports: [
     UsersModule,
+    OrganizationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -34,5 +36,6 @@ import { JwtAuthGuard } from './infrastructure/guards/jwt-auth.guard';
     { provide: TOKEN_SERVICE, useClass: JwtTokenService },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
+  exports: [TOKEN_SERVICE],
 })
 export class AuthModule {}

@@ -3,6 +3,7 @@ import { BoardsModule } from '../boards/boards.module';
 import { ColumnsModule } from '../columns/columns.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { ActivityLogsModule } from '../activity-logs/activity-logs.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 import { TASK_REPOSITORY } from './application/ports/task-repository.port';
 import { PrismaTaskRepository } from './infrastructure/prisma-task.repository';
 import { TaskAccessService } from './application/services/task-access.service';
@@ -15,7 +16,13 @@ import { ListActivityUseCase } from './application/use-cases/list-activity.use-c
 import { TasksController } from './presentation/tasks.controller';
 
 @Module({
-  imports: [BoardsModule, forwardRef(() => ColumnsModule), OrganizationsModule, ActivityLogsModule],
+  imports: [
+    BoardsModule,
+    forwardRef(() => ColumnsModule),
+    OrganizationsModule,
+    ActivityLogsModule,
+    RealtimeModule,
+  ],
   controllers: [TasksController],
   providers: [
     { provide: TASK_REPOSITORY, useClass: PrismaTaskRepository },

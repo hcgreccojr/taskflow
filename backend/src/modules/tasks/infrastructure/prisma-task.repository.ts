@@ -4,6 +4,7 @@ import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { Task, TaskPriority } from '../domain/task.entity';
 import {
   CreateTaskData,
+  PaginatedTasks,
   TaskFilters,
   TaskPositionUpdate,
   TaskRepository,
@@ -80,24 +81,32 @@ export class PrismaTaskRepository implements TaskRepository {
     );
   }
 
-  async findMany(filters: TaskFilters): Promise<Task[]> {
-    const rows = await this.prisma.task.findMany({
-      where: {
-        column: {
-          board: {
-            organization: {
-              memberships: { some: { userId: filters.requesterId } },
-            },
+  async findMany(filters: TaskFilters): Promise<PaginatedTasks> {
+    const where = {
+      column: {
+        board: {
+          organization: {
+            memberships: { some: { userId: filters.requesterId } },
           },
         },
-        assigneeId: filters.assigneeId,
-        columnId: filters.columnId,
-        dueDate: filters.dueBefore ? { lte: filters.dueBefore } : undefined,
-        title: filters.search ? { contains: filters.search, mode: 'insensitive' } : undefined,
       },
-      orderBy: { createdAt: 'desc' },
-    });
-    return rows.map((row) => this.toDomain(row));
+      assigneeId: filters.assigneeId,
+      columnId: filters.columnId,
+      dueDate: filters.dueBefore ? { lte: filters.dueBefore } : undefined,
+      title: filters.search ? { contains: filters.search, mode: 'insensitive' as const } : undefined,
+    };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.task.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: filters.skip,
+        take: filters.take,
+      }),
+      this.prisma.task.count({ where }),
+    ]);
+
+    return { data: rows.map((row) => this.toDomain(row)), total };
   }
 
   private toDomain(row: TaskRow): Task {

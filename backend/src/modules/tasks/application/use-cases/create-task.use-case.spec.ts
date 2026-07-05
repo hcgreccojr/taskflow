@@ -15,6 +15,7 @@ describe('CreateTaskUseCase', () => {
   let membershipRepository: { findByUserAndOrganization: jest.Mock };
   let taskRepository: { findByColumnId: jest.Mock; create: jest.Mock };
   let activityLogRecorder: { recordCreated: jest.Mock };
+  let realtimeNotifier: { notifyBoardEvent: jest.Mock };
 
   beforeEach(() => {
     columnRepository = { findById: jest.fn() };
@@ -23,6 +24,7 @@ describe('CreateTaskUseCase', () => {
     membershipRepository = { findByUserAndOrganization: jest.fn() };
     taskRepository = { findByColumnId: jest.fn(), create: jest.fn() };
     activityLogRecorder = { recordCreated: jest.fn().mockResolvedValue(undefined) };
+    realtimeNotifier = { notifyBoardEvent: jest.fn() };
     useCase = new CreateTaskUseCase(
       columnRepository as any,
       boardRepository as any,
@@ -30,6 +32,7 @@ describe('CreateTaskUseCase', () => {
       membershipRepository as any,
       taskRepository as any,
       activityLogRecorder as unknown as ActivityLogRecorderService,
+      realtimeNotifier as any,
     );
   });
 
@@ -117,6 +120,10 @@ describe('CreateTaskUseCase', () => {
       order: 1,
     });
     expect(activityLogRecorder.recordCreated).toHaveBeenCalledWith('task-2', 'user-1');
+    expect(realtimeNotifier.notifyBoardEvent).toHaveBeenCalledWith('board-1', {
+      type: 'task.created',
+      payload: created,
+    });
     expect(result).toBe(created);
   });
 });

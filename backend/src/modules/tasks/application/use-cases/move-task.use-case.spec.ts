@@ -12,6 +12,7 @@ describe('MoveTaskUseCase', () => {
   let columnRepository: { findById: jest.Mock };
   let activityLogRecorder: { recordStatusChanged: jest.Mock };
   let taskAccessService: { resolve: jest.Mock };
+  let realtimeNotifier: { notifyBoardEvent: jest.Mock };
 
   const board = new Board('board-1', 'org-1', 'Sprint 1', null);
   const sourceColumn = new Column('col-source', 'board-1', 'A Fazer', 0);
@@ -26,11 +27,13 @@ describe('MoveTaskUseCase', () => {
     columnRepository = { findById: jest.fn() };
     activityLogRecorder = { recordStatusChanged: jest.fn().mockResolvedValue(undefined) };
     taskAccessService = { resolve: jest.fn() };
+    realtimeNotifier = { notifyBoardEvent: jest.fn() };
     useCase = new MoveTaskUseCase(
       taskRepository as any,
       columnRepository as any,
       activityLogRecorder as unknown as ActivityLogRecorderService,
       taskAccessService as unknown as TaskAccessService,
+      realtimeNotifier as any,
     );
   });
 
@@ -96,6 +99,10 @@ describe('MoveTaskUseCase', () => {
     expect(result.columnId).toBe('col-target');
     expect(result.order).toBe(1);
     expect(activityLogRecorder.recordStatusChanged).toHaveBeenCalledWith('task-1', 'user-1');
+    expect(realtimeNotifier.notifyBoardEvent).toHaveBeenCalledWith('board-1', {
+      type: 'task.moved',
+      payload: result,
+    });
   });
 
   it('moves the task to a specific position in the middle of another column', async () => {

@@ -110,6 +110,50 @@ describe('Boards flow (e2e)', () => {
       .expect(422);
   });
 
+  it('RNF-003: GET /tasks paginates results and reports accurate meta', async () => {
+    const owner = await registerAndLogin(app);
+
+    const orgRes = await request(app.getHttpServer())
+      .post('/organizations')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'Org Pagination' })
+      .expect(201);
+    const boardRes = await request(app.getHttpServer())
+      .post('/boards')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ organizationId: orgRes.body.id, name: 'Board' })
+      .expect(201);
+    const columnRes = await request(app.getHttpServer())
+      .post(`/boards/${boardRes.body.id}/columns`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'A Fazer' })
+      .expect(201);
+
+    for (let i = 0; i < 5; i++) {
+      await request(app.getHttpServer())
+        .post(`/columns/${columnRes.body.id}/tasks`)
+        .set('Authorization', `Bearer ${owner.accessToken}`)
+        .send({ title: `Tarefa ${i}` })
+        .expect(201);
+    }
+
+    const firstPage = await request(app.getHttpServer())
+      .get(`/tasks?status=${columnRes.body.id}&page=1&limit=2`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(firstPage.body.data).toHaveLength(2);
+    expect(firstPage.body.meta).toEqual({ page: 1, limit: 2, total: 5, totalPages: 3 });
+
+    const secondPage = await request(app.getHttpServer())
+      .get(`/tasks?status=${columnRes.body.id}&page=2&limit=2`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(secondPage.body.data).toHaveLength(2);
+    const firstPageIds = firstPage.body.data.map((t: { id: string }) => t.id);
+    const secondPageIds = secondPage.body.data.map((t: { id: string }) => t.id);
+    expect(secondPageIds).not.toEqual(expect.arrayContaining(firstPageIds));
+  });
+
   it('RN-004: deleting a column moves its tasks to the first remaining column, and blocks deleting the last one', async () => {
     const owner = await registerAndLogin(app);
 
@@ -156,7 +200,7 @@ describe('Boards flow (e2e)', () => {
       .get(`/tasks?status=${col1Res.body.id}`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
       .expect(200);
-    expect(tasksRes.body.map((t: { id: string }) => t.id)).toContain(taskRes.body.id);
+    expect(tasksRes.body.data.map((t: { id: string }) => t.id)).toContain(taskRes.body.id);
 
     await request(app.getHttpServer())
       .delete(`/columns/${col1Res.body.id}`)
@@ -205,5 +249,48 @@ describe('Boards flow (e2e)', () => {
       .get(`/boards?organizationId=${orgRes.body.id}`)
       .set('Authorization', `Bearer ${member.accessToken}`)
       .expect(403);
+  });
+
+  it('RF-005/RN-002: inviting an unregistered e-mail creates a pending invite that auto-joins on registration', async () => {
+    const owner = await registerAndLogin(app);
+    const invitedEmail = `pending.${Date.now()}@example.com`;
+
+    const orgRes = await request(app.getHttpServer())
+      .post('/organizations')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'Org Pending Invite' })
+      .expect(201);
+
+    const inviteRes = await request(app.getHttpServer())
+      .post(`/organizations/${orgRes.body.id}/invites`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ email: invitedEmail })
+      .expect(201);
+    expect(inviteRes.body).toEqual({
+      status: 'pending',
+      invite: expect.objectContaining({ email: invitedEmail, organizationId: orgRes.body.id }),
+    });
+
+    const membersBeforeRegister = await request(app.getHttpServer())
+      .get(`/organizations/${orgRes.body.id}/members`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(membersBeforeRegister.body).toHaveLength(1);
+
+    const invitedUser = await registerAndLogin(app, { email: invitedEmail });
+
+    const membersAfterRegister = await request(app.getHttpServer())
+      .get(`/organizations/${orgRes.body.id}/members`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(membersAfterRegister.body).toHaveLength(2);
+    expect(membersAfterRegister.body.map((m: { userId: string }) => m.userId)).toContain(
+      invitedUser.userId,
+    );
+
+    await request(app.getHttpServer())
+      .get(`/boards?organizationId=${orgRes.body.id}`)
+      .set('Authorization', `Bearer ${invitedUser.accessToken}`)
+      .expect(200);
   });
 });

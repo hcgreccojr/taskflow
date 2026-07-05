@@ -16,6 +16,7 @@ describe('DeleteColumnUseCase', () => {
   let boardRepository: { findById: jest.Mock };
   let taskRepository: { findByColumnId: jest.Mock; updatePositions: jest.Mock };
   let membershipChecker: { assertMember: jest.Mock };
+  let realtimeNotifier: { notifyBoardEvent: jest.Mock };
 
   const board = new Board('board-1', 'org-1', 'Sprint 1', null);
   const colA = new Column('col-a', 'board-1', 'A Fazer', 0);
@@ -35,11 +36,13 @@ describe('DeleteColumnUseCase', () => {
     boardRepository = { findById: jest.fn().mockResolvedValue(board) };
     taskRepository = { findByColumnId: jest.fn(), updatePositions: jest.fn().mockResolvedValue(undefined) };
     membershipChecker = { assertMember: jest.fn().mockResolvedValue(undefined) };
+    realtimeNotifier = { notifyBoardEvent: jest.fn() };
     useCase = new DeleteColumnUseCase(
       columnRepository as any,
       boardRepository as any,
       taskRepository as any,
       membershipChecker as unknown as MembershipCheckerService,
+      realtimeNotifier as any,
     );
   });
 
@@ -99,6 +102,10 @@ describe('DeleteColumnUseCase', () => {
       { id: 'col-a', order: 0 },
       { id: 'col-c', order: 1 },
     ]);
+    expect(realtimeNotifier.notifyBoardEvent).toHaveBeenCalledWith('board-1', {
+      type: 'column.deleted',
+      payload: { columnId: 'col-b' },
+    });
   });
 
   it('moves tasks to the new first column when the first column itself is deleted', async () => {

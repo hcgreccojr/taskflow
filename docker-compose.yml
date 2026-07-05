@@ -23,6 +23,10 @@ services:
       - .env
     environment:
       PORT: 3000
+      # Ambiente de dev/CI: várias suítes e2e registram/logam repetidamente em
+      # segundos — o limite de produção (5/min) bloquearia os testes. Nunca
+      # definido em docker-compose.staging.yml (lá vale o default de produção).
+      AUTH_THROTTLE_LIMIT: ${AUTH_THROTTLE_LIMIT:-1000}
     ports:
       - "3000:3000"
     depends_on:

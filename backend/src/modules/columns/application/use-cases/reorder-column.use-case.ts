@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { BoardRepository, BOARD_REPOSITORY } from '../../../boards/application/ports/board-repository.port';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
+import { RealtimeNotifier, REALTIME_NOTIFIER } from '../../../realtime/application/ports/realtime-notifier.port';
 import { Column } from '../../domain/column.entity';
 import { ColumnRepository, COLUMN_REPOSITORY } from '../ports/column-repository.port';
 
@@ -16,6 +17,7 @@ export class ReorderColumnUseCase {
     @Inject(COLUMN_REPOSITORY) private readonly columnRepository: ColumnRepository,
     @Inject(BOARD_REPOSITORY) private readonly boardRepository: BoardRepository,
     private readonly membershipChecker: MembershipCheckerService,
+    @Inject(REALTIME_NOTIFIER) private readonly realtimeNotifier: RealtimeNotifier,
   ) {}
 
   async execute(input: ReorderColumnInput): Promise<Column[]> {
@@ -40,6 +42,10 @@ export class ReorderColumnUseCase {
     const updates = withoutMoved.map((sibling, index) => ({ id: sibling.id, order: index }));
     await this.columnRepository.updateOrders(updates);
 
-    return withoutMoved.map((sibling, index) => new Column(sibling.id, sibling.boardId, sibling.name, index));
+    const reordered = withoutMoved.map(
+      (sibling, index) => new Column(sibling.id, sibling.boardId, sibling.name, index),
+    );
+    this.realtimeNotifier.notifyBoardEvent(board.id, { type: 'column.reordered', payload: reordered });
+    return reordered;
   }
 }

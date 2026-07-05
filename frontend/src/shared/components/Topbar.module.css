@@ -52,3 +52,22 @@
   font-size: 13px;
   color: var(--color-text-secondary);
 }
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .left {
+    gap: 12px;
+  }
+
+  .nav {
+    gap: 10px;
+  }
+
+  .userName {
+    display: none;
+  }
+}

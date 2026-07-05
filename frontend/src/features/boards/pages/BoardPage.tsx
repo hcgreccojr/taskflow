@@ -11,6 +11,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useBoardsStore } from '../store/boardsStore';
 import { useOrganizationsStore } from '../../organizations/store/organizationsStore';
+import { joinBoard } from '../../../services/realtimeClient';
 import { resolveDragEnd } from '../dndHelpers';
 import { ColumnComponent } from '../components/ColumnComponent';
 import { FilterBar } from '../components/FilterBar';
@@ -53,6 +54,11 @@ export function BoardPage() {
     fetchBoardData(boardId);
     fetchMembers(orgId);
   }, [orgId, boardId, board, fetchBoards, fetchBoardData, fetchMembers]);
+
+  useEffect(() => {
+    if (!boardId) return;
+    return joinBoard(boardId, () => fetchBoardData(boardId));
+  }, [boardId, fetchBoardData]);
 
   const membersById = useMemo(() => new Map(members.map((member) => [member.userId, member])), [members]);
 

@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ColumnRepository, COLUMN_REPOSITORY } from '../../../columns/application/ports/column-repository.port';
 import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
+import { RealtimeNotifier, REALTIME_NOTIFIER } from '../../../realtime/application/ports/realtime-notifier.port';
 import { Task } from '../../domain/task.entity';
 import { TaskRepository, TASK_REPOSITORY } from '../ports/task-repository.port';
 import { TaskAccessService } from '../services/task-access.service';
@@ -19,10 +20,11 @@ export class MoveTaskUseCase {
     @Inject(COLUMN_REPOSITORY) private readonly columnRepository: ColumnRepository,
     private readonly activityLogRecorder: ActivityLogRecorderService,
     private readonly taskAccessService: TaskAccessService,
+    @Inject(REALTIME_NOTIFIER) private readonly realtimeNotifier: RealtimeNotifier,
   ) {}
 
   async execute(input: MoveTaskInput): Promise<Task> {
-    const { task, column: sourceColumn } = await this.taskAccessService.resolve(
+    const { task, column: sourceColumn, board } = await this.taskAccessService.resolve(
       input.taskId,
       input.requesterId,
     );
@@ -39,11 +41,14 @@ export class MoveTaskUseCase {
     }
 
     if (task.columnId === targetColumn.id) {
-      return this.reorderWithinColumn(task, input.order);
+      const reordered = await this.reorderWithinColumn(task, input.order);
+      this.realtimeNotifier.notifyBoardEvent(board.id, { type: 'task.moved', payload: reordered });
+      return reordered;
     }
 
     const moved = await this.moveAcrossColumns(task, targetColumn.id, input.order);
     await this.activityLogRecorder.recordStatusChanged(task.id, input.requesterId);
+    this.realtimeNotifier.notifyBoardEvent(board.id, { type: 'task.moved', payload: moved });
     return moved;
   }
 

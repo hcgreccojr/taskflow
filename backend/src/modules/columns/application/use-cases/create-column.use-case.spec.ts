@@ -9,15 +9,18 @@ describe('CreateColumnUseCase', () => {
   let boardRepository: { findById: jest.Mock };
   let membershipChecker: { assertMember: jest.Mock };
   let columnRepository: { findByBoardId: jest.Mock; create: jest.Mock };
+  let realtimeNotifier: { notifyBoardEvent: jest.Mock };
 
   beforeEach(() => {
     boardRepository = { findById: jest.fn() };
     membershipChecker = { assertMember: jest.fn() };
     columnRepository = { findByBoardId: jest.fn(), create: jest.fn() };
+    realtimeNotifier = { notifyBoardEvent: jest.fn() };
     useCase = new CreateColumnUseCase(
       boardRepository as any,
       membershipChecker as unknown as MembershipCheckerService,
       columnRepository as any,
+      realtimeNotifier as any,
     );
   });
 
@@ -58,6 +61,10 @@ describe('CreateColumnUseCase', () => {
       boardId: 'board-1',
       name: 'Concluído',
       order: 2,
+    });
+    expect(realtimeNotifier.notifyBoardEvent).toHaveBeenCalledWith('board-1', {
+      type: 'column.created',
+      payload: created,
     });
     expect(result).toBe(created);
   });

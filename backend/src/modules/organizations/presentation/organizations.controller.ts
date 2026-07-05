@@ -12,6 +12,8 @@ import { InviteMemberDto } from './dto/invite-member.dto';
 import { OrganizationResponseDto } from './dto/organization-response.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
 import { MemberResponseDto } from './dto/member-response.dto';
+import { InviteResultResponseDto } from './dto/invite-result-response.dto';
+import { PendingInviteResponseDto } from './dto/pending-invite-response.dto';
 
 @ApiTags('organizations')
 @ApiBearerAuth()
@@ -48,23 +50,30 @@ export class OrganizationsController {
   }
 
   @Post(':id/invites')
-  @ApiOperation({ summary: 'Convidar membro para a organização (apenas ADMIN)' })
-  @ApiCreatedResponse({ type: MembershipResponseDto })
+  @ApiOperation({
+    summary:
+      'Convidar membro para a organização (apenas ADMIN). Se o e-mail ainda não tiver conta, ' +
+      'cria um convite pendente que se torna membro automaticamente no cadastro (RN-002).',
+  })
+  @ApiCreatedResponse({ type: InviteResultResponseDto })
   @ApiResponse({ status: 403, description: 'Requisitante não é membro ou não é ADMIN da organização' })
-  @ApiResponse({ status: 422, description: 'Não existe usuário cadastrado com este e-mail' })
   @ApiResponse({ status: 409, description: 'Usuário já é membro desta organização' })
   async invite(
     @CurrentUser() user: TokenPayload,
     @Param('id') organizationId: string,
     @Body() dto: InviteMemberDto,
-  ): Promise<MembershipResponseDto> {
-    const membership = await this.inviteMemberUseCase.execute({
+  ): Promise<InviteResultResponseDto> {
+    const result = await this.inviteMemberUseCase.execute({
       requesterId: user.sub,
       organizationId,
       email: dto.email,
       role: dto.role,
     });
-    return MembershipResponseDto.fromDomain(membership);
+
+    if (result.status === 'joined') {
+      return { status: 'joined', membership: MembershipResponseDto.fromDomain(result.membership) };
+    }
+    return { status: 'pending', invite: PendingInviteResponseDto.fromDomain(result.invite) };
   }
 
   @Get(':id/members')

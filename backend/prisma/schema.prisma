@@ -47,9 +47,10 @@ model Organization {
   ownerId   String
   createdAt DateTime @default(now())
 
-  owner       User         @relation("OrganizationOwner", fields: [ownerId], references: [id])
-  memberships Membership[]
-  boards      Board[]
+  owner          User            @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  memberships    Membership[]
+  boards         Board[]
+  pendingInvites PendingInvite[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -67,6 +68,23 @@ model Membership {
   @@unique([userId, organizationId])
   @@index([organizationId])
   @@map("memberships")
+}
+
+// Convite registrado para um e-mail que ainda não tem conta. Ao se cadastrar
+// com esse e-mail, o usuário vira Membership automaticamente (ver
+// PendingInviteAcceptorService), sem depender de envio real de e-mail.
+model PendingInvite {
+  id             String   @id @default(uuid())
+  organizationId String
+  email          String
+  role           Role
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, email])
+  @@index([email])
+  @@map("pending_invites")
 }
 
 model Board {

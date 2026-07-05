@@ -41,22 +41,43 @@ describe('organizationsStore', () => {
     expect(useOrganizationsStore.getState().membersByOrg['org-1']).toEqual(members);
   });
 
-  it('inviteMember invites and refreshes the members cache', async () => {
+  it('inviteMember invites, refreshes the members cache, and returns the "joined" result', async () => {
     vi.mocked(organizationsApi.inviteMember).mockResolvedValue({
-      id: 'm2',
-      userId: 'user-2',
-      organizationId: 'org-1',
-      role: 'MEMBER',
+      status: 'joined',
+      membership: { id: 'm2', userId: 'user-2', organizationId: 'org-1', role: 'MEMBER' },
     });
     vi.mocked(organizationsApi.listMembers).mockResolvedValue([]);
 
-    await useOrganizationsStore.getState().inviteMember('org-1', 'colega@example.com', 'MEMBER');
+    const result = await useOrganizationsStore
+      .getState()
+      .inviteMember('org-1', 'colega@example.com', 'MEMBER');
 
     expect(organizationsApi.inviteMember).toHaveBeenCalledWith('org-1', {
       email: 'colega@example.com',
       role: 'MEMBER',
     });
     expect(organizationsApi.listMembers).toHaveBeenCalledWith('org-1');
+    expect(result.status).toBe('joined');
+  });
+
+  it('inviteMember returns the "pending" result when the e-mail has no account yet', async () => {
+    vi.mocked(organizationsApi.inviteMember).mockResolvedValue({
+      status: 'pending',
+      invite: {
+        id: 'inv-1',
+        organizationId: 'org-1',
+        email: 'novo@example.com',
+        role: 'MEMBER',
+        createdAt: new Date().toISOString(),
+      },
+    });
+    vi.mocked(organizationsApi.listMembers).mockResolvedValue([]);
+
+    const result = await useOrganizationsStore
+      .getState()
+      .inviteMember('org-1', 'novo@example.com', 'MEMBER');
+
+    expect(result.status).toBe('pending');
   });
 
   it('removeMember removes the membership from the cached list', async () => {

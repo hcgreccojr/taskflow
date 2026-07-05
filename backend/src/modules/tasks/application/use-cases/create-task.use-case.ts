@@ -7,6 +7,7 @@ import {
 } from '../../../organizations/application/ports/membership-repository.port';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
 import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
+import { RealtimeNotifier, REALTIME_NOTIFIER } from '../../../realtime/application/ports/realtime-notifier.port';
 import { Task, TaskPriority } from '../../domain/task.entity';
 import { TaskRepository, TASK_REPOSITORY } from '../ports/task-repository.port';
 
@@ -29,6 +30,7 @@ export class CreateTaskUseCase {
     @Inject(MEMBERSHIP_REPOSITORY) private readonly membershipRepository: MembershipRepository,
     @Inject(TASK_REPOSITORY) private readonly taskRepository: TaskRepository,
     private readonly activityLogRecorder: ActivityLogRecorderService,
+    @Inject(REALTIME_NOTIFIER) private readonly realtimeNotifier: RealtimeNotifier,
   ) {}
 
   async execute(input: CreateTaskInput): Promise<Task> {
@@ -69,6 +71,7 @@ export class CreateTaskUseCase {
     });
 
     await this.activityLogRecorder.recordCreated(created.id, input.requesterId);
+    this.realtimeNotifier.notifyBoardEvent(board.id, { type: 'task.created', payload: created });
 
     return created;
   }

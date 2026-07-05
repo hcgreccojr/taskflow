@@ -4,6 +4,7 @@ import {
   MEMBERSHIP_REPOSITORY,
 } from '../../../organizations/application/ports/membership-repository.port';
 import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
+import { RealtimeNotifier, REALTIME_NOTIFIER } from '../../../realtime/application/ports/realtime-notifier.port';
 import { Task, TaskPriority } from '../../domain/task.entity';
 import { TaskRepository, TASK_REPOSITORY } from '../ports/task-repository.port';
 import { TaskAccessService } from '../services/task-access.service';
@@ -25,6 +26,7 @@ export class UpdateTaskUseCase {
     @Inject(MEMBERSHIP_REPOSITORY) private readonly membershipRepository: MembershipRepository,
     private readonly activityLogRecorder: ActivityLogRecorderService,
     private readonly taskAccessService: TaskAccessService,
+    @Inject(REALTIME_NOTIFIER) private readonly realtimeNotifier: RealtimeNotifier,
   ) {}
 
   async execute(input: UpdateTaskInput): Promise<Task> {
@@ -74,6 +76,8 @@ export class UpdateTaskUseCase {
     if (assigneeChanged) {
       await this.activityLogRecorder.recordAssigned(task.id, input.requesterId);
     }
+
+    this.realtimeNotifier.notifyBoardEvent(board.id, { type: 'task.updated', payload: updated });
 
     return updated;
   }
