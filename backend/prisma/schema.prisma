@@ -124,7 +124,7 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
 
-  task   Task @relation(fields: [taskId], references: [id])
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author User @relation(fields: [authorId], references: [id])
 
   @@index([taskId])
@@ -138,7 +138,7 @@ model ActivityLog {
   action    String
   createdAt DateTime @default(now())
 
-  task Task @relation(fields: [taskId], references: [id])
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id])
 
   @@index([taskId])

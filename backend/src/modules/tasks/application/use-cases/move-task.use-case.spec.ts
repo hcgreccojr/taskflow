@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { MoveTaskUseCase } from './move-task.use-case';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
+import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
 import { Board } from '../../../boards/domain/board.entity';
 import { Column } from '../../../columns/domain/column.entity';
 import { Task, TaskPriority } from '../../domain/task.entity';
@@ -11,6 +12,7 @@ describe('MoveTaskUseCase', () => {
   let columnRepository: { findById: jest.Mock };
   let boardRepository: { findById: jest.Mock };
   let membershipChecker: { assertMember: jest.Mock };
+  let activityLogRecorder: { recordStatusChanged: jest.Mock };
 
   const board = new Board('board-1', 'org-1', 'Sprint 1', null);
   const sourceColumn = new Column('col-source', 'board-1', 'A Fazer', 0);
@@ -25,11 +27,13 @@ describe('MoveTaskUseCase', () => {
     columnRepository = { findById: jest.fn() };
     boardRepository = { findById: jest.fn().mockResolvedValue(board) };
     membershipChecker = { assertMember: jest.fn().mockResolvedValue(undefined) };
+    activityLogRecorder = { recordStatusChanged: jest.fn().mockResolvedValue(undefined) };
     useCase = new MoveTaskUseCase(
       taskRepository as any,
       columnRepository as any,
       boardRepository as any,
       membershipChecker as unknown as MembershipCheckerService,
+      activityLogRecorder as unknown as ActivityLogRecorderService,
     );
   });
 
@@ -97,6 +101,7 @@ describe('MoveTaskUseCase', () => {
     ]);
     expect(result.columnId).toBe('col-target');
     expect(result.order).toBe(1);
+    expect(activityLogRecorder.recordStatusChanged).toHaveBeenCalledWith('task-1', 'user-1');
   });
 
   it('moves the task to a specific position in the middle of another column', async () => {
@@ -158,6 +163,7 @@ describe('MoveTaskUseCase', () => {
       { id: 'task-1', columnId: 'col-source', order: 2 },
     ]);
     expect(result.order).toBe(2);
+    expect(activityLogRecorder.recordStatusChanged).not.toHaveBeenCalled();
   });
 
   it('moves the task into an empty column', async () => {

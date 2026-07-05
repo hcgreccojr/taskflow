@@ -7,11 +7,13 @@ import { UpdateTaskUseCase } from '../application/use-cases/update-task.use-case
 import { MoveTaskUseCase } from '../application/use-cases/move-task.use-case';
 import { DeleteTaskUseCase } from '../application/use-cases/delete-task.use-case';
 import { ListTasksUseCase } from '../application/use-cases/list-tasks.use-case';
+import { ListActivityUseCase } from '../application/use-cases/list-activity.use-case';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { ListTasksQueryDto } from './dto/list-tasks-query.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
+import { ActivityLogResponseDto } from './dto/activity-log-response.dto';
 
 @ApiTags('tasks')
 @ApiBearerAuth()
@@ -23,6 +25,7 @@ export class TasksController {
     private readonly moveTaskUseCase: MoveTaskUseCase,
     private readonly deleteTaskUseCase: DeleteTaskUseCase,
     private readonly listTasksUseCase: ListTasksUseCase,
+    private readonly listActivityUseCase: ListActivityUseCase,
   ) {}
 
   @Post('columns/:id/tasks')
@@ -94,5 +97,14 @@ export class TasksController {
       search: query.search,
     });
     return tasks.map(TaskResponseDto.fromDomain);
+  }
+
+  @Get('tasks/:id/activity')
+  async listActivity(
+    @CurrentUser() user: TokenPayload,
+    @Param('id') taskId: string,
+  ): Promise<ActivityLogResponseDto[]> {
+    const entries = await this.listActivityUseCase.execute({ requesterId: user.sub, taskId });
+    return entries.map(ActivityLogResponseDto.fromDomain);
   }
 }

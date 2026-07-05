@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { CreateTaskUseCase } from './create-task.use-case';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
+import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
 import { Board } from '../../../boards/domain/board.entity';
 import { Column } from '../../../columns/domain/column.entity';
 import { Membership, MembershipRole } from '../../../organizations/domain/membership.entity';
@@ -13,6 +14,7 @@ describe('CreateTaskUseCase', () => {
   let membershipChecker: { assertMember: jest.Mock };
   let membershipRepository: { findByUserAndOrganization: jest.Mock };
   let taskRepository: { findByColumnId: jest.Mock; create: jest.Mock };
+  let activityLogRecorder: { recordCreated: jest.Mock };
 
   beforeEach(() => {
     columnRepository = { findById: jest.fn() };
@@ -20,12 +22,14 @@ describe('CreateTaskUseCase', () => {
     membershipChecker = { assertMember: jest.fn() };
     membershipRepository = { findByUserAndOrganization: jest.fn() };
     taskRepository = { findByColumnId: jest.fn(), create: jest.fn() };
+    activityLogRecorder = { recordCreated: jest.fn().mockResolvedValue(undefined) };
     useCase = new CreateTaskUseCase(
       columnRepository as any,
       boardRepository as any,
       membershipChecker as unknown as MembershipCheckerService,
       membershipRepository as any,
       taskRepository as any,
+      activityLogRecorder as unknown as ActivityLogRecorderService,
     );
   });
 
@@ -103,6 +107,7 @@ describe('CreateTaskUseCase', () => {
       priority: TaskPriority.HIGH,
       order: 1,
     });
+    expect(activityLogRecorder.recordCreated).toHaveBeenCalledWith('task-2', 'user-1');
     expect(result).toBe(created);
   });
 });

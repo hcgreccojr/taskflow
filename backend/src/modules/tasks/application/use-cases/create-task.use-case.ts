@@ -6,6 +6,7 @@ import {
   MEMBERSHIP_REPOSITORY,
 } from '../../../organizations/application/ports/membership-repository.port';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
+import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
 import { Task, TaskPriority } from '../../domain/task.entity';
 import { TaskRepository, TASK_REPOSITORY } from '../ports/task-repository.port';
 
@@ -27,6 +28,7 @@ export class CreateTaskUseCase {
     private readonly membershipChecker: MembershipCheckerService,
     @Inject(MEMBERSHIP_REPOSITORY) private readonly membershipRepository: MembershipRepository,
     @Inject(TASK_REPOSITORY) private readonly taskRepository: TaskRepository,
+    private readonly activityLogRecorder: ActivityLogRecorderService,
   ) {}
 
   async execute(input: CreateTaskInput): Promise<Task> {
@@ -56,7 +58,7 @@ export class CreateTaskUseCase {
 
     const existingTasks = await this.taskRepository.findByColumnId(input.columnId);
 
-    return this.taskRepository.create({
+    const created = await this.taskRepository.create({
       columnId: input.columnId,
       title: input.title,
       description: input.description,
@@ -65,5 +67,9 @@ export class CreateTaskUseCase {
       priority: input.priority,
       order: existingTasks.length,
     });
+
+    await this.activityLogRecorder.recordCreated(created.id, input.requesterId);
+
+    return created;
   }
 }

@@ -1,6 +1,7 @@
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { UpdateTaskUseCase } from './update-task.use-case';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
+import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
 import { Board } from '../../../boards/domain/board.entity';
 import { Column } from '../../../columns/domain/column.entity';
 import { Membership, MembershipRole } from '../../../organizations/domain/membership.entity';
@@ -13,6 +14,7 @@ describe('UpdateTaskUseCase', () => {
   let boardRepository: { findById: jest.Mock };
   let membershipChecker: { assertMember: jest.Mock };
   let membershipRepository: { findByUserAndOrganization: jest.Mock };
+  let activityLogRecorder: { recordFieldsUpdated: jest.Mock; recordAssigned: jest.Mock };
 
   const existingTask = new Task(
     'task-1',
@@ -36,12 +38,17 @@ describe('UpdateTaskUseCase', () => {
     };
     membershipChecker = { assertMember: jest.fn().mockResolvedValue(undefined) };
     membershipRepository = { findByUserAndOrganization: jest.fn() };
+    activityLogRecorder = {
+      recordFieldsUpdated: jest.fn().mockResolvedValue(undefined),
+      recordAssigned: jest.fn().mockResolvedValue(undefined),
+    };
     useCase = new UpdateTaskUseCase(
       taskRepository as any,
       columnRepository as any,
       boardRepository as any,
       membershipChecker as unknown as MembershipCheckerService,
       membershipRepository as any,
+      activityLogRecorder as unknown as ActivityLogRecorderService,
     );
   });
 
@@ -93,6 +100,20 @@ describe('UpdateTaskUseCase', () => {
       dueDate: undefined,
       priority: TaskPriority.HIGH,
     });
+    expect(activityLogRecorder.recordFieldsUpdated).toHaveBeenCalledWith('task-1', 'user-1', [
+      'título',
+      'prioridade',
+    ]);
+    expect(activityLogRecorder.recordAssigned).toHaveBeenCalledWith('task-1', 'user-1');
     expect(result).toBe(updated);
+  });
+
+  it('does not record activity when no field actually changes', async () => {
+    taskRepository.update.mockResolvedValue(existingTask);
+
+    await useCase.execute({ requesterId: 'user-1', taskId: 'task-1', title: existingTask.title });
+
+    expect(activityLogRecorder.recordFieldsUpdated).not.toHaveBeenCalled();
+    expect(activityLogRecorder.recordAssigned).not.toHaveBeenCalled();
   });
 });

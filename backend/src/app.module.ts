@@ -8,6 +8,8 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { BoardsModule } from './modules/boards/boards.module';
 import { ColumnsModule } from './modules/columns/columns.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { ActivityLogsModule } from './modules/activity-logs/activity-logs.module';
+import { CommentsModule } from './modules/comments/comments.module';
 
 @Module({
   imports: [
@@ -19,7 +21,9 @@ import { TasksModule } from './modules/tasks/tasks.module';
     OrganizationsModule,
     BoardsModule,
     ColumnsModule,
+    ActivityLogsModule,
     TasksModule,
+    CommentsModule,
   ],
 })
 export class AppModule {}

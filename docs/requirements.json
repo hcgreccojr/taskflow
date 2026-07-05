@@ -1,7 +1,7 @@
 {
   "project": "TaskFlow",
   "description": "Sistema de gestão de tarefas colaborativo (estilo Trello/Jira simplificado)",
-  "version": "1.2",
+  "version": "1.3",
   "document_type": "requirements",
   "changelog": [
     {
@@ -18,6 +18,14 @@
       "changes": [
         "Adicionado o query param 'search' ao endpoint GET /tasks. A tabela de api_endpoints só listava assigneeId/status/dueBefore, mas a própria descrição do RF-015 exige 'buscar por título' — lacuna entre o texto do requisito e a tabela de endpoints.",
         "Esclarecido que o query param 'status' de GET /tasks filtra por columnId exato: não existe campo Task.status no modelo de dados — a coluna representa o estágio/status da tarefa no Kanban (RF-015)."
+      ]
+    },
+    {
+      "version": "1.3",
+      "date": "2026-07-05",
+      "changes": [
+        "Adicionados os endpoints GET /tasks/:id/comments, PATCH /comments/:id e DELETE /comments/:id. A tabela de api_endpoints só listava POST /tasks/:id/comments, mas RN-006 (edição/exclusão de comentários dentro de uma janela de 15 minutos) não faz sentido sem endpoints para listar, editar e excluir comentários.",
+        "Corrigida a constraint de chave estrangeira de comments.taskId e activity_logs.taskId de ON DELETE RESTRICT para ON DELETE CASCADE. A migration inicial usava RESTRICT, o que impediria a exclusão definitiva de uma tarefa (RF-012) assim que ela tivesse comentários ou entradas de histórico associadas."
       ]
     }
   ],
@@ -168,6 +176,9 @@
     { "method": "PATCH", "path": "/tasks/:id/move", "description": "Mover tarefa entre colunas", "auth_required": true },
     { "method": "DELETE", "path": "/tasks/:id", "description": "Excluir tarefa", "auth_required": true },
     { "method": "POST", "path": "/tasks/:id/comments", "description": "Comentar em tarefa", "auth_required": true },
+    { "method": "GET", "path": "/tasks/:id/comments", "description": "Listar comentários de uma tarefa", "auth_required": true },
+    { "method": "PATCH", "path": "/comments/:id", "description": "Editar comentário (até 15 minutos após a criação, apenas o autor)", "auth_required": true },
+    { "method": "DELETE", "path": "/comments/:id", "description": "Excluir comentário (apenas o autor)", "auth_required": true },
     { "method": "GET", "path": "/tasks/:id/activity", "description": "Consultar histórico de atividades", "auth_required": true },
     { "method": "GET", "path": "/tasks", "description": "Buscar/filtrar tarefas", "query_params": ["assigneeId", "status", "dueBefore", "search"], "auth_required": true }
   ],

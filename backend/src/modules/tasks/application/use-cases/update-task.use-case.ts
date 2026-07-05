@@ -6,6 +6,7 @@ import {
   MEMBERSHIP_REPOSITORY,
 } from '../../../organizations/application/ports/membership-repository.port';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
+import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
 import { Task, TaskPriority } from '../../domain/task.entity';
 import { TaskRepository, TASK_REPOSITORY } from '../ports/task-repository.port';
 
@@ -27,6 +28,7 @@ export class UpdateTaskUseCase {
     @Inject(BOARD_REPOSITORY) private readonly boardRepository: BoardRepository,
     private readonly membershipChecker: MembershipCheckerService,
     @Inject(MEMBERSHIP_REPOSITORY) private readonly membershipRepository: MembershipRepository,
+    private readonly activityLogRecorder: ActivityLogRecorderService,
   ) {}
 
   async execute(input: UpdateTaskInput): Promise<Task> {
@@ -59,12 +61,39 @@ export class UpdateTaskUseCase {
       }
     }
 
-    return this.taskRepository.update(input.taskId, {
+    const updatedFields: string[] = [];
+    if (input.title !== undefined && input.title !== task.title) {
+      updatedFields.push('título');
+    }
+    if (input.description !== undefined && input.description !== task.description) {
+      updatedFields.push('descrição');
+    }
+    if (
+      input.dueDate !== undefined &&
+      (input.dueDate?.getTime() ?? null) !== (task.dueDate?.getTime() ?? null)
+    ) {
+      updatedFields.push('prazo');
+    }
+    if (input.priority !== undefined && input.priority !== task.priority) {
+      updatedFields.push('prioridade');
+    }
+    const assigneeChanged = input.assigneeId !== undefined && input.assigneeId !== task.assigneeId;
+
+    const updated = await this.taskRepository.update(input.taskId, {
       title: input.title,
       description: input.description,
       assigneeId: input.assigneeId,
       dueDate: input.dueDate,
       priority: input.priority,
     });
+
+    if (updatedFields.length > 0) {
+      await this.activityLogRecorder.recordFieldsUpdated(task.id, input.requesterId, updatedFields);
+    }
+    if (assigneeChanged) {
+      await this.activityLogRecorder.recordAssigned(task.id, input.requesterId);
+    }
+
+    return updated;
   }
 }

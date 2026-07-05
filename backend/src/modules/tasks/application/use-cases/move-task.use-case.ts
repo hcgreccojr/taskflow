@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { BoardRepository, BOARD_REPOSITORY } from '../../../boards/application/ports/board-repository.port';
 import { ColumnRepository, COLUMN_REPOSITORY } from '../../../columns/application/ports/column-repository.port';
 import { MembershipCheckerService } from '../../../organizations/application/services/membership-checker.service';
+import { ActivityLogRecorderService } from '../../../activity-logs/application/services/activity-log-recorder.service';
 import { Task } from '../../domain/task.entity';
 import { TaskRepository, TASK_REPOSITORY } from '../ports/task-repository.port';
 
@@ -19,6 +20,7 @@ export class MoveTaskUseCase {
     @Inject(COLUMN_REPOSITORY) private readonly columnRepository: ColumnRepository,
     @Inject(BOARD_REPOSITORY) private readonly boardRepository: BoardRepository,
     private readonly membershipChecker: MembershipCheckerService,
+    private readonly activityLogRecorder: ActivityLogRecorderService,
   ) {}
 
   async execute(input: MoveTaskInput): Promise<Task> {
@@ -54,7 +56,9 @@ export class MoveTaskUseCase {
       return this.reorderWithinColumn(task, input.order);
     }
 
-    return this.moveAcrossColumns(task, targetColumn.id, input.order);
+    const moved = await this.moveAcrossColumns(task, targetColumn.id, input.order);
+    await this.activityLogRecorder.recordStatusChanged(task.id, input.requesterId);
+    return moved;
   }
 
   private async reorderWithinColumn(task: Task, order?: number): Promise<Task> {
