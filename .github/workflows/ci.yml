@@ -154,13 +154,28 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - name: Checar se este commit ainda é o HEAD de main
+        id: check
+        run: |
+          LATEST_SHA=$(git ls-remote https://github.com/${{ github.repository }}.git refs/heads/main | cut -f1)
+          if [ "$LATEST_SHA" = "${{ github.sha }}" ]; then
+            echo "is_latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_latest=false" >> "$GITHUB_OUTPUT"
+            # Um re-run manual de um workflow antigo (ex.: via "Re-run jobs" na aba Actions) chega
+            # aqui depois de commits mais novos já terem publicado — sem essa checagem, ele venceria
+            # a corrida e sobrescreveria :latest com uma imagem desatualizada.
+            echo "::warning::Commit ${{ github.sha }} não é mais o HEAD de main (atual: $LATEST_SHA) — pulando publish para não sobrescrever :latest com uma imagem desatualizada."
+          fi
       - name: Log in to GitHub Container Registry
+        if: steps.check.outputs.is_latest == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push backend image
+        if: steps.check.outputs.is_latest == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -169,6 +184,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/taskflow-backend:latest
             ghcr.io/${{ github.repository_owner }}/taskflow-backend:${{ github.sha }}
       - name: Build and push frontend image
+        if: steps.check.outputs.is_latest == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
