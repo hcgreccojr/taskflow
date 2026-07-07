@@ -251,6 +251,41 @@ describe('Boards flow (e2e)', () => {
       .expect(403);
   });
 
+  it('RN-002: blocks removing the last admin, but allows it once another admin exists', async () => {
+    const owner = await registerAndLogin(app);
+    const secondAdmin = await registerAndLogin(app);
+
+    const orgRes = await request(app.getHttpServer())
+      .post('/organizations')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'Org Last Admin' })
+      .expect(201);
+
+    const membersBefore = await request(app.getHttpServer())
+      .get(`/organizations/${orgRes.body.id}/members`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    const ownerMembership = membersBefore.body.find(
+      (m: { userId: string }) => m.userId === owner.userId,
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/organizations/${orgRes.body.id}/members/${ownerMembership.id}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post(`/organizations/${orgRes.body.id}/invites`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ email: secondAdmin.email, role: 'ADMIN' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/organizations/${orgRes.body.id}/members/${ownerMembership.id}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+  });
+
   it('RF-005/RN-002: inviting an unregistered e-mail creates a pending invite that auto-joins on registration', async () => {
     const owner = await registerAndLogin(app);
     const invitedEmail = `pending.${Date.now()}@example.com`;
@@ -292,5 +327,62 @@ describe('Boards flow (e2e)', () => {
       .get(`/boards?organizationId=${orgRes.body.id}`)
       .set('Authorization', `Bearer ${invitedUser.accessToken}`)
       .expect(200);
+  });
+
+  it('allows any member to edit a board, but only an admin to delete it (cascading columns/tasks)', async () => {
+    const owner = await registerAndLogin(app);
+    const member = await registerAndLogin(app);
+
+    const orgRes = await request(app.getHttpServer())
+      .post('/organizations')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'Org Board CRUD' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/organizations/${orgRes.body.id}/invites`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ email: member.email })
+      .expect(201);
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/boards')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ organizationId: orgRes.body.id, name: 'Board Original' })
+      .expect(201);
+
+    const updateRes = await request(app.getHttpServer())
+      .patch(`/boards/${boardRes.body.id}`)
+      .set('Authorization', `Bearer ${member.accessToken}`)
+      .send({ name: 'Board Renomeado', description: 'Nova descrição' })
+      .expect(200);
+    expect(updateRes.body.name).toBe('Board Renomeado');
+    expect(updateRes.body.description).toBe('Nova descrição');
+
+    const columnRes = await request(app.getHttpServer())
+      .post(`/boards/${boardRes.body.id}/columns`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'A Fazer' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/columns/${columnRes.body.id}/tasks`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ title: 'Tarefa dentro do board' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/boards/${boardRes.body.id}`)
+      .set('Authorization', `Bearer ${member.accessToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .delete(`/boards/${boardRes.body.id}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+
+    const boardsAfter = await request(app.getHttpServer())
+      .get(`/boards?organizationId=${orgRes.body.id}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(boardsAfter.body).toHaveLength(0);
   });
 });

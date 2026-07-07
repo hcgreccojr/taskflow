@@ -50,6 +50,56 @@ describe('boardsStore', () => {
     expect(useBoardsStore.getState().columnsByBoard['board-1']).toHaveLength(3);
   });
 
+  it('updateBoard replaces the board in place within its organization list', async () => {
+    useBoardsStore.setState({
+      boardsByOrg: {
+        'org-1': [{ id: 'board-1', organizationId: 'org-1', name: 'Sprint 1', description: null }],
+      },
+    });
+    vi.mocked(boardsApi.updateBoard).mockResolvedValue({
+      id: 'board-1',
+      organizationId: 'org-1',
+      name: 'Sprint 2',
+      description: 'Nova descrição',
+    });
+
+    const updated = await useBoardsStore
+      .getState()
+      .updateBoard('org-1', 'board-1', { name: 'Sprint 2', description: 'Nova descrição' });
+
+    expect(boardsApi.updateBoard).toHaveBeenCalledWith('board-1', {
+      name: 'Sprint 2',
+      description: 'Nova descrição',
+    });
+    expect(useBoardsStore.getState().boardsByOrg['org-1']).toEqual([updated]);
+  });
+
+  it('deleteBoard removes the board and cleans up its columns/tasks from local state', async () => {
+    useBoardsStore.setState({
+      boardsByOrg: {
+        'org-1': [
+          { id: 'board-1', organizationId: 'org-1', name: 'Sprint 1', description: null },
+          { id: 'board-2', organizationId: 'org-1', name: 'Sprint 2', description: null },
+        ],
+      },
+      columnsByBoard: {
+        'board-1': [{ id: 'col-1', boardId: 'board-1', name: 'A Fazer', order: 0 }],
+      },
+      tasksByColumn: {
+        'col-1': [makeTask('task-1', 'col-1', 0)],
+      },
+    });
+    vi.mocked(boardsApi.deleteBoard).mockResolvedValue(undefined);
+
+    await useBoardsStore.getState().deleteBoard('org-1', 'board-1');
+
+    expect(boardsApi.deleteBoard).toHaveBeenCalledWith('board-1');
+    const state = useBoardsStore.getState();
+    expect(state.boardsByOrg['org-1'].map((b) => b.id)).toEqual(['board-2']);
+    expect(state.columnsByBoard['board-1']).toBeUndefined();
+    expect(state.tasksByColumn['col-1']).toBeUndefined();
+  });
+
   it('fetchBoardData loads columns and sorts each column tasks by order', async () => {
     vi.mocked(columnsApi.listColumns).mockResolvedValue([
       { id: 'col-1', boardId: 'board-1', name: 'A Fazer', order: 0 },

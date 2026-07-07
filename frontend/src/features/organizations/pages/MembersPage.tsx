@@ -60,8 +60,11 @@ export function MembersPage() {
     try {
       await removeMember(orgId, removingMember.id);
       pushToast('Membro removido');
-    } catch {
-      pushToast('Não foi possível remover o membro', 'error');
+    } catch (err) {
+      pushToast(
+        err instanceof ApiError ? err.messages.join(' ') : 'Não foi possível remover o membro',
+        'error',
+      );
     } finally {
       setRemovingMember(null);
     }

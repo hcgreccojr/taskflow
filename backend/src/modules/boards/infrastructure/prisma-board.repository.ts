@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/prisma/prisma.service';
 import { Board } from '../domain/board.entity';
-import { BoardRepository, CreateBoardData } from '../application/ports/board-repository.port';
+import { BoardRepository, CreateBoardData, UpdateBoardData } from '../application/ports/board-repository.port';
 
 @Injectable()
 export class PrismaBoardRepository implements BoardRepository {
@@ -26,6 +26,25 @@ export class PrismaBoardRepository implements BoardRepository {
   async findByOrganizationId(organizationId: string): Promise<Board[]> {
     const rows = await this.prisma.board.findMany({ where: { organizationId } });
     return rows.map((row) => this.toDomain(row));
+  }
+
+  async update(id: string, data: UpdateBoardData): Promise<Board> {
+    const row = await this.prisma.board.update({
+      where: { id },
+      data: { name: data.name, description: data.description },
+    });
+    return this.toDomain(row);
+  }
+
+  async delete(id: string): Promise<void> {
+    // Board->Column e Column->Task não têm onDelete: Cascade no schema (de
+    // propósito, por causa da RN-004) — a exclusão em cascata é feita aqui,
+    // em transação. Comment/ActivityLog já cascateiam a partir de Task.
+    await this.prisma.$transaction([
+      this.prisma.task.deleteMany({ where: { column: { boardId: id } } }),
+      this.prisma.column.deleteMany({ where: { boardId: id } }),
+      this.prisma.board.delete({ where: { id } }),
+    ]);
   }
 
   private toDomain(row: {

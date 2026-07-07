@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useBoardsStore } from '../store/boardsStore';
 import { useOrganizationsStore } from '../../organizations/store/organizationsStore';
 import * as columnsApi from '../../../services/columnsApi';
@@ -9,6 +9,7 @@ import { Topbar } from '../../../shared/components/Topbar';
 import { TextField } from '../../../shared/components/TextField';
 import { Button } from '../../../shared/components/Button';
 import { useToastStore } from '../../../shared/store/toastStore';
+import { ApiError } from '../../../services/httpClient';
 import { emptyArray } from '../../../shared/utils/emptyArray';
 import type { Board, Member } from '../../../shared/types/api';
 import styles from './DashboardPage.module.css';
@@ -20,6 +21,7 @@ interface TaskStats {
 
 export function DashboardPage() {
   const { orgId = '' } = useParams();
+  const navigate = useNavigate();
   const boards = useBoardsStore((state) => state.boardsByOrg[orgId] ?? emptyArray<Board>());
   const fetchBoards = useBoardsStore((state) => state.fetchBoards);
   const createBoard = useBoardsStore((state) => state.createBoard);
@@ -32,10 +34,20 @@ export function DashboardPage() {
   const [taskStats, setTaskStats] = useState<TaskStats>({ total: 0, overdue: 0 });
 
   useEffect(() => {
-    if (orgId) {
-      fetchBoards(orgId);
-      fetchMembers(orgId);
+    if (!orgId) return;
+    async function load() {
+      try {
+        await fetchBoards(orgId);
+        await fetchMembers(orgId);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 403) {
+          pushToast('Você não tem mais acesso a esta organização.', 'error');
+          navigate('/orgs');
+        }
+      }
     }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, fetchBoards, fetchMembers]);
 
   useEffect(() => {

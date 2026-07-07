@@ -19,6 +19,12 @@ interface BoardsState {
 
   fetchBoards: (organizationId: string) => Promise<void>;
   createBoard: (organizationId: string, name: string, description?: string) => Promise<Board>;
+  updateBoard: (
+    organizationId: string,
+    boardId: string,
+    data: { name?: string; description?: string },
+  ) => Promise<Board>;
+  deleteBoard: (organizationId: string, boardId: string) => Promise<void>;
   fetchBoardData: (boardId: string) => Promise<void>;
   createColumn: (boardId: string, name: string) => Promise<void>;
   deleteColumn: (boardId: string, columnId: string) => Promise<void>;
@@ -69,6 +75,42 @@ export const useBoardsStore = create<BoardsState>((set, get) => ({
     }));
 
     return board;
+  },
+
+  updateBoard: async (organizationId, boardId, data) => {
+    const updated = await boardsApi.updateBoard(boardId, data);
+    set((state) => ({
+      boardsByOrg: {
+        ...state.boardsByOrg,
+        [organizationId]: (state.boardsByOrg[organizationId] ?? []).map((board) =>
+          board.id === boardId ? updated : board,
+        ),
+      },
+    }));
+    return updated;
+  },
+
+  deleteBoard: async (organizationId, boardId) => {
+    await boardsApi.deleteBoard(boardId);
+    set((state) => {
+      const removedColumnIds = new Set((state.columnsByBoard[boardId] ?? []).map((c) => c.id));
+      const columnsByBoard = Object.fromEntries(
+        Object.entries(state.columnsByBoard).filter(([id]) => id !== boardId),
+      );
+      const tasksByColumn = Object.fromEntries(
+        Object.entries(state.tasksByColumn).filter(([columnId]) => !removedColumnIds.has(columnId)),
+      );
+      return {
+        boardsByOrg: {
+          ...state.boardsByOrg,
+          [organizationId]: (state.boardsByOrg[organizationId] ?? []).filter(
+            (board) => board.id !== boardId,
+          ),
+        },
+        columnsByBoard,
+        tasksByColumn,
+      };
+    });
   },
 
   fetchBoardData: async (boardId) => {

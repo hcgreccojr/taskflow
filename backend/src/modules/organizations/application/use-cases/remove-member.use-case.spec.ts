@@ -1,15 +1,23 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { RemoveMemberUseCase } from './remove-member.use-case';
 import { MembershipCheckerService } from '../services/membership-checker.service';
 import { Membership, MembershipRole } from '../../domain/membership.entity';
 
 describe('RemoveMemberUseCase', () => {
   let useCase: RemoveMemberUseCase;
-  let membershipRepository: { findById: jest.Mock; delete: jest.Mock };
+  let membershipRepository: {
+    findById: jest.Mock;
+    delete: jest.Mock;
+    findByOrganization: jest.Mock;
+  };
   let membershipChecker: { assertAdmin: jest.Mock };
 
   beforeEach(() => {
-    membershipRepository = { findById: jest.fn(), delete: jest.fn().mockResolvedValue(undefined) };
+    membershipRepository = {
+      findById: jest.fn(),
+      delete: jest.fn().mockResolvedValue(undefined),
+      findByOrganization: jest.fn(),
+    };
     membershipChecker = { assertAdmin: jest.fn().mockResolvedValue(undefined) };
     useCase = new RemoveMemberUseCase(
       membershipRepository as any,
@@ -45,6 +53,34 @@ describe('RemoveMemberUseCase', () => {
     membershipRepository.findById.mockResolvedValue(
       new Membership('mem-2', 'user-2', 'org-1', MembershipRole.MEMBER),
     );
+
+    await useCase.execute(input);
+
+    expect(membershipRepository.delete).toHaveBeenCalledWith('mem-2');
+    expect(membershipRepository.findByOrganization).not.toHaveBeenCalled();
+  });
+
+  it('blocks removing an admin when they are the only admin left', async () => {
+    membershipRepository.findById.mockResolvedValue(
+      new Membership('mem-2', 'user-2', 'org-1', MembershipRole.ADMIN),
+    );
+    membershipRepository.findByOrganization.mockResolvedValue([
+      new Membership('mem-2', 'user-2', 'org-1', MembershipRole.ADMIN),
+      new Membership('mem-3', 'user-3', 'org-1', MembershipRole.MEMBER),
+    ]);
+
+    await expect(useCase.execute(input)).rejects.toBeInstanceOf(BadRequestException);
+    expect(membershipRepository.delete).not.toHaveBeenCalled();
+  });
+
+  it('allows removing an admin when another admin remains', async () => {
+    membershipRepository.findById.mockResolvedValue(
+      new Membership('mem-2', 'user-2', 'org-1', MembershipRole.ADMIN),
+    );
+    membershipRepository.findByOrganization.mockResolvedValue([
+      new Membership('mem-2', 'user-2', 'org-1', MembershipRole.ADMIN),
+      new Membership('mem-3', 'user-3', 'org-1', MembershipRole.ADMIN),
+    ]);
 
     await useCase.execute(input);
 

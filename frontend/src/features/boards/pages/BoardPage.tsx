@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
   PointerSensor,
@@ -11,15 +11,19 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useBoardsStore } from '../store/boardsStore';
 import { useOrganizationsStore } from '../../organizations/store/organizationsStore';
+import { useAuthStore } from '../../auth/store/authStore';
 import { joinBoard } from '../../../services/realtimeClient';
 import { resolveDragEnd } from '../dndHelpers';
 import { ColumnComponent } from '../components/ColumnComponent';
 import { FilterBar } from '../components/FilterBar';
 import type { BoardFilters } from '../components/FilterBar';
+import { EditBoardModal } from '../components/EditBoardModal';
 import { TaskDetailModal } from '../../tasks/components/TaskDetailModal';
 import { Avatar } from '../../../shared/components/Avatar';
 import { Button } from '../../../shared/components/Button';
+import { ConfirmDialog } from '../../../shared/components/ConfirmDialog';
 import { useToastStore } from '../../../shared/store/toastStore';
+import { ApiError } from '../../../services/httpClient';
 import { emptyArray } from '../../../shared/utils/emptyArray';
 import type { Column, Member } from '../../../shared/types/api';
 import styles from './BoardPage.module.css';
@@ -28,6 +32,7 @@ const EMPTY_FILTERS: BoardFilters = { search: '', assigneeId: '', priority: '' }
 
 export function BoardPage() {
   const { orgId = '', boardId = '' } = useParams();
+  const navigate = useNavigate();
 
   const board = useBoardsStore((state) => state.boardsByOrg[orgId]?.find((b) => b.id === boardId));
   const fetchBoards = useBoardsStore((state) => state.fetchBoards);
@@ -39,7 +44,10 @@ export function BoardPage() {
   const deleteColumn = useBoardsStore((state) => state.deleteColumn);
   const moveTask = useBoardsStore((state) => state.moveTask);
   const reorderColumns = useBoardsStore((state) => state.reorderColumns);
+  const updateBoard = useBoardsStore((state) => state.updateBoard);
+  const deleteBoard = useBoardsStore((state) => state.deleteBoard);
 
+  const currentUser = useAuthStore((state) => state.user);
   const members = useOrganizationsStore((state) => state.membersByOrg[orgId] ?? emptyArray<Member>());
   const fetchMembers = useOrganizationsStore((state) => state.fetchMembers);
   const pushToast = useToastStore((state) => state.push);
@@ -48,16 +56,40 @@ export function BoardPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
+  const [editingBoard, setEditingBoard] = useState(false);
+  const [confirmingDeleteBoard, setConfirmingDeleteBoard] = useState(false);
+
+  const isAdmin = members.some((member) => member.userId === currentUser?.id && member.role === 'ADMIN');
+
+  function handleAccessError(error: unknown) {
+    if (error instanceof ApiError && error.status === 403) {
+      pushToast('Você não tem mais acesso a este quadro.', 'error');
+      navigate(`/orgs/${orgId}`);
+      return true;
+    }
+    return false;
+  }
 
   useEffect(() => {
-    if (!board) fetchBoards(orgId);
-    fetchBoardData(boardId);
-    fetchMembers(orgId);
+    async function load() {
+      try {
+        if (!board) await fetchBoards(orgId);
+        await fetchBoardData(boardId);
+        await fetchMembers(orgId);
+      } catch (error) {
+        handleAccessError(error);
+      }
+    }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, boardId, board, fetchBoards, fetchBoardData, fetchMembers]);
 
   useEffect(() => {
     if (!boardId) return;
-    return joinBoard(boardId, () => fetchBoardData(boardId));
+    return joinBoard(boardId, () => {
+      fetchBoardData(boardId).catch(handleAccessError);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId, fetchBoardData]);
 
   const membersById = useMemo(() => new Map(members.map((member) => [member.userId, member])), [members]);
@@ -111,6 +143,23 @@ export function BoardPage() {
     }
   }
 
+  async function onSaveBoard(data: { name: string; description?: string }) {
+    await updateBoard(orgId, boardId, data);
+    pushToast('Quadro atualizado');
+  }
+
+  async function onConfirmDeleteBoard() {
+    try {
+      await deleteBoard(orgId, boardId);
+      pushToast('Quadro excluído');
+      navigate(`/orgs/${orgId}`);
+    } catch {
+      pushToast('Não foi possível excluir o quadro', 'error');
+    } finally {
+      setConfirmingDeleteBoard(false);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -130,6 +179,14 @@ export function BoardPage() {
           <Link to={`/orgs/${orgId}/members`}>
             <Button variant="ghost">Gerenciar membros</Button>
           </Link>
+          <Button variant="ghost" onClick={() => setEditingBoard(true)}>
+            Editar quadro
+          </Button>
+          {isAdmin && (
+            <Button variant="ghost" onClick={() => setConfirmingDeleteBoard(true)}>
+              Excluir quadro
+            </Button>
+          )}
         </div>
       </div>
 
@@ -181,6 +238,20 @@ export function BoardPage() {
           columns={columns}
           members={members}
           onClose={() => setSelectedTaskId(null)}
+        />
+      )}
+
+      {editingBoard && board && (
+        <EditBoardModal board={board} onSave={onSaveBoard} onClose={() => setEditingBoard(false)} />
+      )}
+
+      {confirmingDeleteBoard && (
+        <ConfirmDialog
+          title="Excluir quadro"
+          description="Todas as colunas e tarefas deste quadro serão excluídas permanentemente. Esta ação não pode ser desfeita."
+          confirmLabel="Excluir quadro"
+          onConfirm={onConfirmDeleteBoard}
+          onCancel={() => setConfirmingDeleteBoard(false)}
         />
       )}
     </div>
