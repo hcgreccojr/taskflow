@@ -2,9 +2,13 @@
 # qualquer host com Docker, sem precisar clonar/buildar o código-fonte.
 #
 # Uso:
-#   cp .env.example .env   # ajuste POSTGRES_*, JWT_* e DATABASE_URL para produção/staging
+#   cp .env.example .env   # ajuste POSTGRES_*, JWT_*, DATABASE_URL e CORS_ORIGIN para produção/staging
 #   docker compose -f docker-compose.staging.yml up -d
 #   docker compose -f docker-compose.staging.yml exec backend npx prisma migrate deploy
+#
+# CORS_ORIGIN precisa apontar para o domínio real do frontend — o backend
+# recusa subir (NODE_ENV=production) se essa variável não estiver definida,
+# mas não detecta se ela ainda estiver com o valor de exemplo (localhost).
 #
 # As imagens são publicadas automaticamente pelo job "publish" do CI a cada
 # push na branch main (ver .github/workflows/ci.yml).
@@ -37,6 +41,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   frontend:
     image: ghcr.io/${GHCR_OWNER:-hcgreccojr}/taskflow-frontend:${IMAGE_TAG:-latest}
@@ -44,7 +54,14 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:
