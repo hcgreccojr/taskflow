@@ -8,6 +8,8 @@ interface OrganizationsState {
   loading: boolean;
   fetchOrganizations: () => Promise<void>;
   createOrganization: (name: string) => Promise<Organization>;
+  updateOrganization: (organizationId: string, name: string) => Promise<Organization>;
+  deleteOrganization: (organizationId: string) => Promise<void>;
   fetchMembers: (organizationId: string) => Promise<void>;
   inviteMember: (organizationId: string, email: string, role?: MembershipRole) => Promise<InviteResult>;
   removeMember: (organizationId: string, membershipId: string) => Promise<void>;
@@ -33,6 +35,33 @@ export const useOrganizationsStore = create<OrganizationsState>((set, get) => ({
     const organization = await organizationsApi.createOrganization(name);
     set((state) => ({ organizations: [...state.organizations, organization] }));
     return organization;
+  },
+
+  updateOrganization: async (organizationId, name) => {
+    const updated = await organizationsApi.updateOrganization(organizationId, { name });
+    let merged = updated;
+    set((state) => ({
+      organizations: state.organizations.map((org) => {
+        if (org.id !== organizationId) return org;
+        // PATCH não retorna `role` (o papel do usuário não muda ao editar); preserva o já conhecido.
+        merged = { ...updated, role: org.role };
+        return merged;
+      }),
+    }));
+    return merged;
+  },
+
+  deleteOrganization: async (organizationId) => {
+    await organizationsApi.deleteOrganization(organizationId);
+    set((state) => {
+      const membersByOrg = Object.fromEntries(
+        Object.entries(state.membersByOrg).filter(([id]) => id !== organizationId),
+      );
+      return {
+        organizations: state.organizations.filter((org) => org.id !== organizationId),
+        membersByOrg,
+      };
+    });
   },
 
   fetchMembers: async (organizationId) => {

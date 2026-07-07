@@ -30,6 +30,42 @@ describe('organizationsStore', () => {
     expect(useOrganizationsStore.getState().organizations).toContainEqual(created);
   });
 
+  it('updateOrganization replaces the organization in place', async () => {
+    useOrganizationsStore.setState({
+      organizations: [{ id: 'org-1', name: 'Old Name', ownerId: 'user-1', createdAt: new Date().toISOString() }],
+    });
+    const updated = { id: 'org-1', name: 'New Name', ownerId: 'user-1', createdAt: new Date().toISOString() };
+    vi.mocked(organizationsApi.updateOrganization).mockResolvedValue(updated);
+
+    const result = await useOrganizationsStore.getState().updateOrganization('org-1', 'New Name');
+
+    expect(organizationsApi.updateOrganization).toHaveBeenCalledWith('org-1', { name: 'New Name' });
+    expect(useOrganizationsStore.getState().organizations).toEqual([updated]);
+    expect(result).toEqual(updated);
+  });
+
+  it('deleteOrganization removes the organization and its cached members', async () => {
+    useOrganizationsStore.setState({
+      organizations: [
+        { id: 'org-1', name: 'Org 1', ownerId: 'user-1', createdAt: new Date().toISOString() },
+        { id: 'org-2', name: 'Org 2', ownerId: 'user-1', createdAt: new Date().toISOString() },
+      ],
+      membersByOrg: {
+        'org-1': [
+          { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'ADMIN', name: 'Ana', email: 'ana@example.com' },
+        ],
+      },
+    });
+    vi.mocked(organizationsApi.deleteOrganization).mockResolvedValue(undefined);
+
+    await useOrganizationsStore.getState().deleteOrganization('org-1');
+
+    expect(organizationsApi.deleteOrganization).toHaveBeenCalledWith('org-1');
+    const state = useOrganizationsStore.getState();
+    expect(state.organizations.map((org) => org.id)).toEqual(['org-2']);
+    expect(state.membersByOrg['org-1']).toBeUndefined();
+  });
+
   it('fetchMembers caches the members list per organization', async () => {
     const members = [
       { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'ADMIN' as const, name: 'Ana', email: 'ana@example.com' },

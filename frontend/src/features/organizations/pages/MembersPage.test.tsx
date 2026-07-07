@@ -2,19 +2,30 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MembersPage } from './MembersPage';
-import type { Member } from '../../../shared/types/api';
+import type { Member, Organization } from '../../../shared/types/api';
 
 const fetchMembers = vi.fn();
 const inviteMember = vi.fn();
 const removeMember = vi.fn();
+const fetchOrganizations = vi.fn();
+const updateOrganization = vi.fn();
+const deleteOrganization = vi.fn();
+const navigateMock = vi.fn();
 
 let members: Member[] = [];
+let organizations: Organization[] = [
+  { id: 'org-1', name: 'Org Original', ownerId: 'user-1', createdAt: new Date().toISOString() },
+];
 
 interface FakeOrganizationsState {
   membersByOrg: Record<string, Member[]>;
+  organizations: Organization[];
   fetchMembers: typeof fetchMembers;
   inviteMember: typeof inviteMember;
   removeMember: typeof removeMember;
+  fetchOrganizations: typeof fetchOrganizations;
+  updateOrganization: typeof updateOrganization;
+  deleteOrganization: typeof deleteOrganization;
 }
 
 interface FakeAuthState {
@@ -24,7 +35,16 @@ interface FakeAuthState {
 
 vi.mock('../store/organizationsStore', () => ({
   useOrganizationsStore: (selector: (state: FakeOrganizationsState) => unknown) =>
-    selector({ membersByOrg: { 'org-1': members }, fetchMembers, inviteMember, removeMember }),
+    selector({
+      membersByOrg: { 'org-1': members },
+      organizations,
+      fetchMembers,
+      inviteMember,
+      removeMember,
+      fetchOrganizations,
+      updateOrganization,
+      deleteOrganization,
+    }),
 }));
 
 vi.mock('../../auth/store/authStore', () => ({
@@ -34,6 +54,11 @@ vi.mock('../../auth/store/authStore', () => ({
       logout: vi.fn(),
     }),
 }));
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => navigateMock };
+});
 
 function renderPage() {
   render(
@@ -48,6 +73,11 @@ function renderPage() {
 describe('MembersPage', () => {
   beforeEach(() => {
     removeMember.mockReset();
+    updateOrganization.mockReset();
+    deleteOrganization.mockReset();
+    fetchOrganizations.mockReset();
+    navigateMock.mockReset();
+    organizations = [{ id: 'org-1', name: 'Org Original', ownerId: 'user-1', createdAt: new Date().toISOString() }];
   });
 
   it('shows the invite form when the current user is an ADMIN', () => {
@@ -108,5 +138,50 @@ describe('MembersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remover membro' }));
 
     await waitFor(() => expect(removeMember).toHaveBeenCalledWith('org-1', 'm2'));
+  });
+
+  it('always shows the "Editar organização" button and saves the new name', async () => {
+    members = [
+      { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'MEMBER', name: 'Ana', email: 'ana@example.com' },
+    ];
+    updateOrganization.mockResolvedValue(undefined);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar organização' }));
+    expect(screen.getByRole('heading', { name: 'Editar organização' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => expect(updateOrganization).toHaveBeenCalledWith('org-1', 'Org Original'));
+  });
+
+  it('hides the "Excluir organização" button when the current user is not an ADMIN', () => {
+    members = [
+      { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'MEMBER', name: 'Ana', email: 'ana@example.com' },
+    ];
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Excluir organização' })).not.toBeInTheDocument();
+  });
+
+  it('confirms and deletes the organization, then navigates to /orgs', async () => {
+    members = [
+      { id: 'm1', userId: 'user-1', organizationId: 'org-1', role: 'ADMIN', name: 'Ana', email: 'ana@example.com' },
+    ];
+    deleteOrganization.mockResolvedValue(undefined);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir organização' }));
+    expect(screen.getByRole('heading', { name: 'Excluir organização' })).toBeInTheDocument();
+    expect(deleteOrganization).not.toHaveBeenCalled();
+
+    const confirmButtons = screen.getAllByRole('button', { name: 'Excluir organização' });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+    await waitFor(() => expect(deleteOrganization).toHaveBeenCalledWith('org-1'));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/orgs'));
   });
 });

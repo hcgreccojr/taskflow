@@ -385,4 +385,59 @@ describe('Boards flow (e2e)', () => {
       .expect(200);
     expect(boardsAfter.body).toHaveLength(0);
   });
+
+  it('allows any member to edit an organization, but only an admin to delete it (cascading boards/columns/tasks)', async () => {
+    const owner = await registerAndLogin(app);
+    const member = await registerAndLogin(app);
+
+    const orgRes = await request(app.getHttpServer())
+      .post('/organizations')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'Org Original' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/organizations/${orgRes.body.id}/invites`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ email: member.email })
+      .expect(201);
+
+    const updateRes = await request(app.getHttpServer())
+      .patch(`/organizations/${orgRes.body.id}`)
+      .set('Authorization', `Bearer ${member.accessToken}`)
+      .send({ name: 'Org Renomeada' })
+      .expect(200);
+    expect(updateRes.body.name).toBe('Org Renomeada');
+
+    const boardRes = await request(app.getHttpServer())
+      .post('/boards')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ organizationId: orgRes.body.id, name: 'Board dentro da org' })
+      .expect(201);
+    const columnRes = await request(app.getHttpServer())
+      .post(`/boards/${boardRes.body.id}/columns`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'A Fazer' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/columns/${columnRes.body.id}/tasks`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ title: 'Tarefa dentro do board' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/organizations/${orgRes.body.id}`)
+      .set('Authorization', `Bearer ${member.accessToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .delete(`/organizations/${orgRes.body.id}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+
+    const orgsAfter = await request(app.getHttpServer())
+      .get('/organizations')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(orgsAfter.body.map((org: { id: string }) => org.id)).not.toContain(orgRes.body.id);
+  });
 });

@@ -1,19 +1,23 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/infrastructure/decorators/current-user.decorator';
 import { TokenPayload } from '../../auth/application/ports/token.service.port';
 import { CreateOrganizationUseCase } from '../application/use-cases/create-organization.use-case';
 import { ListOrganizationsUseCase } from '../application/use-cases/list-organizations.use-case';
+import { UpdateOrganizationUseCase } from '../application/use-cases/update-organization.use-case';
+import { DeleteOrganizationUseCase } from '../application/use-cases/delete-organization.use-case';
 import { InviteMemberUseCase } from '../application/use-cases/invite-member.use-case';
 import { ListMembersUseCase } from '../application/use-cases/list-members.use-case';
 import { RemoveMemberUseCase } from '../application/use-cases/remove-member.use-case';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { OrganizationResponseDto } from './dto/organization-response.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
 import { MemberResponseDto } from './dto/member-response.dto';
 import { InviteResultResponseDto } from './dto/invite-result-response.dto';
 import { PendingInviteResponseDto } from './dto/pending-invite-response.dto';
+import { MembershipRole } from '../domain/membership.entity';
 
 @ApiTags('organizations')
 @ApiBearerAuth()
@@ -22,6 +26,8 @@ export class OrganizationsController {
   constructor(
     private readonly createOrganizationUseCase: CreateOrganizationUseCase,
     private readonly listOrganizationsUseCase: ListOrganizationsUseCase,
+    private readonly updateOrganizationUseCase: UpdateOrganizationUseCase,
+    private readonly deleteOrganizationUseCase: DeleteOrganizationUseCase,
     private readonly inviteMemberUseCase: InviteMemberUseCase,
     private readonly listMembersUseCase: ListMembersUseCase,
     private readonly removeMemberUseCase: RemoveMemberUseCase,
@@ -32,7 +38,7 @@ export class OrganizationsController {
   @ApiOkResponse({ type: OrganizationResponseDto, isArray: true })
   async list(@CurrentUser() user: TokenPayload): Promise<OrganizationResponseDto[]> {
     const organizations = await this.listOrganizationsUseCase.execute(user.sub);
-    return organizations.map(OrganizationResponseDto.fromDomain);
+    return organizations.map(({ organization, role }) => OrganizationResponseDto.fromDomain(organization, role));
   }
 
   @Post()
@@ -46,7 +52,36 @@ export class OrganizationsController {
       name: dto.name,
       ownerId: user.sub,
     });
+    return OrganizationResponseDto.fromDomain(organization, MembershipRole.ADMIN);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Editar nome da organização' })
+  @ApiOkResponse({ type: OrganizationResponseDto })
+  @ApiResponse({ status: 404, description: 'Organização não encontrada' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é membro da organização' })
+  async update(
+    @CurrentUser() user: TokenPayload,
+    @Param('id') organizationId: string,
+    @Body() dto: UpdateOrganizationDto,
+  ): Promise<OrganizationResponseDto> {
+    const organization = await this.updateOrganizationUseCase.execute({
+      requesterId: user.sub,
+      organizationId,
+      name: dto.name,
+    });
     return OrganizationResponseDto.fromDomain(organization);
+  }
+
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Excluir organização, com boards, colunas, tarefas, memberships e convites (apenas ADMIN)',
+  })
+  @ApiResponse({ status: 200, description: 'Organização excluída' })
+  @ApiResponse({ status: 404, description: 'Organização não encontrada' })
+  @ApiResponse({ status: 403, description: 'Requisitante não é ADMIN da organização' })
+  async delete(@CurrentUser() user: TokenPayload, @Param('id') organizationId: string): Promise<void> {
+    await this.deleteOrganizationUseCase.execute({ requesterId: user.sub, organizationId });
   }
 
   @Post(':id/invites')

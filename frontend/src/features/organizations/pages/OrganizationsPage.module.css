@@ -36,9 +36,11 @@
   box-shadow: var(--shadow-card);
   padding: 20px;
   text-align: left;
-  text-decoration: none;
   color: inherit;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .card:hover {
@@ -46,10 +48,21 @@
   box-shadow: 0 6px 20px rgba(23, 24, 28, 0.08);
 }
 
+.cardLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
 .cardName {
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 600;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
 }
 
 .newCard {

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Organization } from '../../domain/organization.entity';
 import {
   OrganizationRepository,
+  OrganizationWithRole,
   ORGANIZATION_REPOSITORY,
 } from '../ports/organization-repository.port';
 
@@ -11,7 +11,7 @@ export class ListOrganizationsUseCase {
     @Inject(ORGANIZATION_REPOSITORY) private readonly organizationRepository: OrganizationRepository,
   ) {}
 
-  execute(userId: string): Promise<Organization[]> {
+  execute(userId: string): Promise<OrganizationWithRole[]> {
     return this.organizationRepository.findByUserId(userId);
   }
 }

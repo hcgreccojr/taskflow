@@ -10,6 +10,8 @@ import { MembershipCheckerService } from './application/services/membership-chec
 import { PendingInviteAcceptorService } from './application/services/pending-invite-acceptor.service';
 import { CreateOrganizationUseCase } from './application/use-cases/create-organization.use-case';
 import { ListOrganizationsUseCase } from './application/use-cases/list-organizations.use-case';
+import { UpdateOrganizationUseCase } from './application/use-cases/update-organization.use-case';
+import { DeleteOrganizationUseCase } from './application/use-cases/delete-organization.use-case';
 import { InviteMemberUseCase } from './application/use-cases/invite-member.use-case';
 import { ListMembersUseCase } from './application/use-cases/list-members.use-case';
 import { RemoveMemberUseCase } from './application/use-cases/remove-member.use-case';
@@ -26,6 +28,8 @@ import { OrganizationsController } from './presentation/organizations.controller
     PendingInviteAcceptorService,
     CreateOrganizationUseCase,
     ListOrganizationsUseCase,
+    UpdateOrganizationUseCase,
+    DeleteOrganizationUseCase,
     InviteMemberUseCase,
     ListMembersUseCase,
     RemoveMemberUseCase,

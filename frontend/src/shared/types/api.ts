@@ -12,6 +12,8 @@ export interface Organization {
   name: string;
   ownerId: string;
   createdAt: string;
+  /** Papel do usuário atual nesta organização. Presente em list/create; ausente em update. */
+  role?: MembershipRole;
 }
 
 export interface Membership {

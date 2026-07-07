@@ -16,7 +16,20 @@
   font-family: var(--font-display);
   font-size: 26px;
   font-weight: 700;
+}
+
+.titleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 24px;
+}
+
+.titleActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .list {
