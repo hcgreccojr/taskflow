@@ -1,7 +1,7 @@
 {
   "project": "TaskFlow",
   "description": "Sistema de gestão de tarefas colaborativo (estilo Trello/Jira simplificado)",
-  "version": "1.6",
+  "version": "1.7",
   "document_type": "requirements",
   "changelog": [
     {
@@ -56,6 +56,15 @@
         "GET /tasks agora é paginado: aceita page/limit (default 1/50, máx. 100) e retorna {data, meta} em vez de um array puro — mudança de forma de resposta. GET /tasks?status=<columnId> (usado pelo board Kanban) usa limit=100 para preservar o comportamento anterior de 'todas as tarefas da coluna'.",
         "RF-005 (Convidar membro): convite para e-mail sem conta deixa de retornar 422 — cria um PendingInvite que vira Membership automaticamente no cadastro (RN-002). Resposta de POST /organizations/:id/invites muda de Membership para {status:'joined'|'pending', ...}. Novo model de dados PendingInvite.",
         "Nova capacidade: notificações em tempo real via WebSocket (namespace /realtime) para tarefas e colunas de um quadro — o Documento do Projeto listava isso como 'fora do escopo v1'; passa a ser parte do escopo implementado a partir desta versão."
+      ]
+    },
+    {
+      "version": "1.7",
+      "date": "2026-07-07",
+      "changes": [
+        "Auditoria de homologação comparando o código implementado com este documento: foram encontradas duas lacunas de rastreabilidade — funcionalidade real, testada e em produção, sem RF/RN correspondente. Ambas fechadas nesta versão, seguindo o mesmo padrão de formalização retroativa já usado na v1.5:",
+        "Adicionados RF-018 (Editar quadro), RF-019 (Excluir quadro), RF-020 (Editar organização) e RF-021 (Excluir organização), e os endpoints PATCH/DELETE /boards/:id e PATCH/DELETE /organizations/:id. Editar exige apenas ser membro da organização; excluir exige ADMIN e é destrutivo (apaga em cascata colunas/tarefas, ou boards/colunas/tarefas/memberships/convites, respectivamente).",
+        "Adicionada RN-007: a organização deve manter ao menos um ADMIN a qualquer momento — a remoção de um membro ADMIN é bloqueada se ele for o único administrador restante."
       ]
     }
   ],
@@ -221,6 +230,44 @@
         "Tarefas da coluna excluída são movidas para a primeira coluna restante do quadro (RN-004)",
         "Exclusão é bloqueada se for a única coluna do quadro"
       ]
+    },
+    {
+      "id": "RF-018",
+      "name": "Editar quadro",
+      "priority": "medium",
+      "description": "Membro da organização pode editar o nome e a descrição de um quadro existente.",
+      "acceptance_criteria": [
+        "Qualquer membro da organização pode editar (não exige ADMIN)"
+      ]
+    },
+    {
+      "id": "RF-019",
+      "name": "Excluir quadro",
+      "priority": "medium",
+      "description": "Administrador da organização pode excluir um quadro.",
+      "acceptance_criteria": [
+        "Apenas ADMIN pode excluir (ação destrutiva)",
+        "Colunas e tarefas do quadro são excluídas em cascata"
+      ]
+    },
+    {
+      "id": "RF-020",
+      "name": "Editar organização",
+      "priority": "medium",
+      "description": "Membro pode editar o nome de uma organização existente.",
+      "acceptance_criteria": [
+        "Qualquer membro da organização pode editar (não exige ADMIN)"
+      ]
+    },
+    {
+      "id": "RF-021",
+      "name": "Excluir organização",
+      "priority": "medium",
+      "description": "Administrador pode excluir a organização.",
+      "acceptance_criteria": [
+        "Apenas ADMIN pode excluir (ação destrutiva)",
+        "Boards, colunas, tarefas, memberships e convites pendentes da organização são excluídos em cascata"
+      ]
     }
   ],
   "non_functional_requirements": [
@@ -299,6 +346,10 @@
     {
       "id": "RN-006",
       "rule": "Comentários não podem ser editados após 15 minutos de sua criação; apenas exclusão é permitida após esse período."
+    },
+    {
+      "id": "RN-007",
+      "rule": "A organização deve manter ao menos um ADMIN a qualquer momento; a remoção de um membro ADMIN é bloqueada se ele for o único administrador restante."
     }
   ],
   "user_stories": [
@@ -801,6 +852,18 @@
       "auth_required": true
     },
     {
+      "method": "PATCH",
+      "path": "/organizations/:id",
+      "description": "Editar nome da organização",
+      "auth_required": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/organizations/:id",
+      "description": "Excluir organização, com boards, colunas, tarefas, memberships e convites em cascata",
+      "auth_required": "admin"
+    },
+    {
       "method": "POST",
       "path": "/organizations/:id/invites",
       "description": "Convidar membro (retorna {status:'joined', membership} ou {status:'pending', invite} se o e-mail ainda não tiver conta)",
@@ -832,6 +895,18 @@
       "path": "/boards",
       "description": "Criar quadro",
       "auth_required": true
+    },
+    {
+      "method": "PATCH",
+      "path": "/boards/:id",
+      "description": "Editar nome/descrição de um quadro",
+      "auth_required": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/boards/:id",
+      "description": "Excluir quadro, com colunas e tarefas em cascata",
+      "auth_required": "admin"
     },
     {
       "method": "GET",
