@@ -28,5 +28,9 @@ test('cria organização, quadro e tarefa, e a tarefa aparece na coluna', async 
   await page.getByPlaceholder('Título da tarefa').fill('Tarefa criada via Playwright');
   await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
 
-  await expect(page.getByText('Tarefa criada via Playwright')).toBeVisible();
+  // O formulário de nova tarefa fecha após a criação — espera-o sumir antes de checar o
+  // card, já que por um instante o texto digitado e o título do card recém-criado coexistem
+  // (ambos com o mesmo texto), o que torna getByText ambíguo (strict mode violation).
+  await expect(page.getByPlaceholder('Título da tarefa')).not.toBeVisible();
+  await expect(page.getByRole('button', { name: /Tarefa criada via Playwright/ })).toBeVisible();
 });

@@ -45,9 +45,12 @@ test('arrastar uma tarefa entre colunas move a tarefa e persiste a nova posiçã
   await page.getByRole('button', { name: '+ Adicionar tarefa' }).first().click();
   await page.getByPlaceholder('Título da tarefa').fill('Tarefa arrastável');
   await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
-  await expect(page.getByText('Tarefa arrastável')).toBeVisible();
 
-  const taskCard = page.getByText('Tarefa arrastável').locator('..').locator('..');
+  // Espera o formulário de nova tarefa fechar antes de localizar o card — por um instante,
+  // o texto digitado e o título do card recém-criado coexistem com o mesmo texto na tela.
+  await expect(page.getByPlaceholder('Título da tarefa')).not.toBeVisible();
+  const taskCard = page.getByRole('button', { name: /Tarefa arrastável/ });
+  await expect(taskCard).toBeVisible();
   const targetColumnComposer = page.getByRole('button', { name: '+ Adicionar tarefa' }).nth(1);
 
   await dragTo(page, taskCard, targetColumnComposer);
