@@ -103,10 +103,21 @@ Pipeline (`.github/workflows/ci.yml`), a cada push/PR:
 Não há ambiente de staging hospedado no momento — o pipeline deixa a imagem pronta (estágio `publish`), e `docker-compose.staging.yml` é a referência de como subir a stack publicada em qualquer host Docker (VPS, PaaS com suporte a Docker, etc.), sem precisar clonar o repositório:
 
 ```bash
-cp .env.example .env   # ajuste POSTGRES_*, JWT_* e DATABASE_URL
+cp .env.example .env   # ajuste POSTGRES_*, JWT_*, DATABASE_URL e CORS_ORIGIN
 docker compose -f docker-compose.staging.yml up -d
 docker compose -f docker-compose.staging.yml exec backend npx prisma migrate deploy
 ```
+
+O backend recusa subir (`NODE_ENV=production`) se `CORS_ORIGIN` não estiver definida — evita cair silenciosamente para `localhost` num deploy real.
+
+### Pendências antes de um deploy de produção real
+
+A auditoria de homologação (2026-07-07) identificou o que falta para sair de "docker-compose num host qualquer" para produção de verdade. A plataforma de destino ainda não foi decidida, então nada abaixo foi implementado — é o checklist para quando for:
+
+- [ ] **TLS/HTTPS** — colocar um proxy reverso (Caddy/Traefik) ou LB gerenciado na frente; hoje o nginx do frontend só serve HTTP puro na porta 80.
+- [ ] **Deploy automático (CD)** — o CI publica a imagem no GHCR mas nada a implanta; hoje subir uma versão nova é manual (`docker compose pull && up -d`).
+- [ ] **Backup/restore do Postgres** — hoje é só um volume Docker local; definir e testar uma rotina de backup (gerenciado, ou `pg_dump` agendado + restore validado).
+- [ ] Usuário não-root nos Dockerfiles, segredos num gestor real (não só `.env`), CDN para os assets do frontend — ver relatório completo da auditoria para detalhes e prioridade relativa de cada item.
 
 ## Documentos do projeto
 
