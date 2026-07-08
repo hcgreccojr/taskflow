@@ -1,6 +1,6 @@
 # TaskFlow
 
-Sistema de gestão de tarefas colaborativo (estilo Trello/Jira simplificado): usuários criam **organizações**, que agrupam **quadros (boards)**, que contêm **colunas** ordenáveis, que contêm **tarefas** ordenáveis — com comentários, histórico de atividades e movimentação por drag-and-drop. Veja `docs/requirements.json` para a especificação completa (requisitos, regras de negócio, modelo de dados e endpoints) e `docs/TaskFlow_Documento_do_Projeto.pdf` para a arquitetura e o roadmap.
+Sistema de gestão de tarefas colaborativo (estilo Trello/Jira simplificado): usuários criam **organizações**, que agrupam **quadros (boards)**, que contêm **colunas** ordenáveis, que contêm **tarefas** ordenáveis — com comentários, histórico de atividades e movimentação por drag-and-drop. Veja `docs/TaskFlow_Documento_de_Requisitos.pdf` para a especificação completa (requisitos, regras de negócio, modelo de dados e endpoints) e `docs/TaskFlow_Documento_do_Projeto.pdf` para a arquitetura e o roadmap.
 
 ## Funcionalidades
 
@@ -121,7 +121,7 @@ A auditoria de homologação (2026-07-07) identificou o que falta para sair de "
 
 ## Documentos do projeto
 
-- `docs/requirements.json` — especificação completa (requisitos funcionais/não funcionais, regras de negócio, modelo de dados, endpoints), otimizada para consumo por agentes de IA.
+- `docs/TaskFlow_Documento_de_Requisitos.pdf` — especificação completa (requisitos funcionais/não funcionais, regras de negócio, modelo de dados, endpoints), otimizada para consumo por agentes de IA.
 - `docs/TaskFlow_Documento_do_Projeto.pdf` — arquitetura, stack, boas práticas e roadmap.
 - `docs/design-handoff.md` — referência de design (tokens visuais, telas, comportamento) usada na implementação do frontend.
 
